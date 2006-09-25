@@ -3,7 +3,7 @@ Priority: optional
 Section: libdevel
 Maintainer: XCB Developers <xcb@lists.freedesktop.org>
 Uploaders: Jamey Sharp <sharpone@debian.org>, Josh Triplett <josh@freedesktop.org>
-Build-Depends: x11proto-core-dev, libxau-dev, libxdmcp-dev, xcb-proto, cdbs, debhelper (>= 5.0.0), pkg-config, xsltproc, check, binutils (>= 2.12.90.0.9)
+Build-Depends: libxau-dev, libxdmcp-dev, xcb-proto, cdbs, debhelper (>= 5.0.0), pkg-config, xsltproc, check, binutils (>= 2.12.90.0.9)
 Standards-Version: 3.6.1
 
 Package: libxcb0
@@ -30,7 +30,7 @@ Description: X C Binding
 Package: libxcb0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb0 (= ${Source-Version}), x11proto-core-dev
+Depends: libxcb0 (= ${Source-Version})
 Pre-Depends: x11-common (>= 1:1.09)
 Description: X C Binding, development files
  This package contains the header and library files needed to build software
