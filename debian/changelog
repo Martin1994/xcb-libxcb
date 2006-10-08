@@ -1,3 +1,29 @@
+libxcb (0.9.92-1) experimental; urgency=low
+
+  * New upstream version.
+
+  [ Josh Triplett ]
+  * No longer installs files to /usr/include/X11, so remove Pre-Depends on
+    x11-common.
+  * Update to Standards-Version 3.7.2 (no changes required).
+  * Point specifically to http://xcb.freedesktop.org/dist in copyright file,
+    rather than http://xcb.freedesktop.org .
+  * Add debian/watch file.
+  * Install pkgconfig files to /usr/share/pkgconfig.
+  * Version Build-Depends on xcb-proto as (>= 0.9.92)
+  * Change libxcb0{,-dev,-dbg} to libxcb1{,-dev,-dbg} to match soname bump, and
+    update Depends of other library -dev packages.
+  * Add debian/control stanzas and debhelper install files for new library
+    libxcb-xlib0.
+  * Change libxcb${ext}0{,-dev,-dbg} to libxcb-${ext}0{,-dev,-dbg}, to match
+    the sonames of the libraries.
+  * cdbs >= 0.4.40 now builds -dbg packages for each library package, without
+    requiring DEB_DBG_PACKAGE_libxcb* for each one.  Remove assignments to
+    these variables in debian/rules, and version cdbs Build-Depends accordingly.
+  * Change -dbg package priorities from optional to extra.
+
+ -- Jamey Sharp <sharpone@debian.org>  Sun, 08 Oct 2006 01:19:28 -0700
+
 libxcb (0.9-3) experimental; urgency=low
 
   * Stop running autoreconf in debian/rules, and remove Build-Depends for
