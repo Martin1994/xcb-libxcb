@@ -68,9 +68,6 @@ authorization from the authors.
     <xsl:for-each select="/xcb/import">
       <path><xsl:value-of select="concat($extension-path, ., '.xml')" /></path>
     </xsl:for-each>
-    <xsl:if test="not($header='xproto')">
-      <path><xsl:value-of select="concat($base-path, 'xproto.xml')" /></path>
-    </xsl:if>
   </xsl:variable>
   <xsl:variable name="search-path" select="e:node-set($search-path-rtf)/path"/>
 
@@ -270,8 +267,8 @@ authorization from the authors.
         <xsl:variable name="type-definitions"
                       select="(/xcb|document($search-path)/xcb
                               )[$is-unqualified or @header=$namespace]
-                               /*[((self::struct or self::union
-                                    or self::xidtype or self::enum
+                               /*[((self::struct or self::union or self::enum
+                                    or self::xidtype or self::xidunion
                                     or self::event or self::eventcopy
                                     or self::error or self::errorcopy)
                                    and @name=$unqualified-type)
@@ -403,18 +400,10 @@ authorization from the authors.
     </xsl:if>
   </xsl:template>
 
-  <xsl:template match="xidtype" mode="pass1">
-    <struct name="{xcb:xcb-prefix(@name)}_t">
-      <field type="uint32_t" name="xid" />
-    </struct>
+  <xsl:template match="xidtype|xidunion" mode="pass1">
+    <typedef oldname="uint32_t" newname="{xcb:xcb-prefix(@name)}_t" />
     <iterator ref="{xcb:xcb-prefix(@name)}" />
     <iterator-functions ref="{xcb:xcb-prefix(@name)}" />
-    <function type="{xcb:xcb-prefix(@name)}_t" name="{xcb:xcb-prefix(@name)}_new">
-      <field type="xcb_connection_t *" name="c" />
-      <l><xsl:value-of select="concat(xcb:xcb-prefix(@name), '_t')" /> ret;</l>
-      <l>ret.xid = xcb_generate_id(c);</l>
-      <l>return ret;</l>
-    </function>
   </xsl:template>
 
   <xsl:template match="struct|union" mode="pass1">
@@ -1085,6 +1074,8 @@ authorization from the authors.
       </xsl:variable>
       <xsl:text>typedef </xsl:text>
       <xsl:if test="not(@kind)">struct</xsl:if><xsl:value-of select="@kind" />
+      <xsl:text> </xsl:text>
+      <xsl:value-of select="@name" />
       <xsl:text> {
 </xsl:text>
       <xsl:for-each select="exprfield|field|list[@fixed]|pad">
@@ -1105,7 +1096,9 @@ authorization from the authors.
 
   <xsl:template match="enum" mode="output">
     <xsl:if test="$h">
-      <xsl:text>typedef enum {
+      <xsl:text>typedef enum </xsl:text>
+      <xsl:value-of select="@name" />
+      <xsl:text> {
     </xsl:text>
       <xsl:call-template name="list">
         <xsl:with-param name="separator"><xsl:text>,

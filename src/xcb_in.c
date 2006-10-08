@@ -108,8 +108,6 @@ static int read_packet(xcb_connection_t *c)
             }
             c->in.request_completed = c->in.request_read - 1;
         }
-        if(genrep.response_type == XCB_ERROR)
-            c->in.request_completed = c->in.request_read;
 
         while(c->in.pending_replies && 
 	      XCB_SEQUENCE_COMPARE (c->in.pending_replies->request, <=, c->in.request_completed))
@@ -120,6 +118,9 @@ static int read_packet(xcb_connection_t *c)
                 c->in.pending_replies_tail = &c->in.pending_replies;
             free(oldpend);
         }
+
+        if(genrep.response_type == XCB_ERROR)
+            c->in.request_completed = c->in.request_read;
     }
 
     if(genrep.response_type == XCB_ERROR || genrep.response_type == XCB_REPLY)
@@ -318,7 +319,7 @@ void *xcb_wait_for_reply(xcb_connection_t *c, unsigned int request, xcb_generic_
     if(c->has_error)
         return 0;
 
-    pthread_mutex_lock(&c->iolock);
+    _xcb_lock_io(c);
 
     /* If this request has not been written yet, write it. */
     if(_xcb_out_flush_to(c, request))
@@ -358,7 +359,7 @@ void *xcb_wait_for_reply(xcb_connection_t *c, unsigned int request, xcb_generic_
     }
 
     wake_up_next_reader(c);
-    pthread_mutex_unlock(&c->iolock);
+    _xcb_unlock_io(c);
     return ret;
 }
 
@@ -373,9 +374,9 @@ int xcb_poll_for_reply(xcb_connection_t *c, unsigned int request, void **reply, 
         return 1; /* would not block */
     }
     assert(reply != 0);
-    pthread_mutex_lock(&c->iolock);
+    _xcb_lock_io(c);
     ret = poll_for_reply(c, request, reply, error);
-    pthread_mutex_unlock(&c->iolock);
+    _xcb_unlock_io(c);
     return ret;
 }
 
@@ -384,44 +385,29 @@ xcb_generic_event_t *xcb_wait_for_event(xcb_connection_t *c)
     xcb_generic_event_t *ret;
     if(c->has_error)
         return 0;
-    pthread_mutex_lock(&c->iolock);
+    _xcb_lock_io(c);
     /* get_event returns 0 on empty list. */
     while(!(ret = get_event(c)))
         if(!_xcb_conn_wait(c, &c->in.event_cond, 0, 0))
             break;
 
     wake_up_next_reader(c);
-    pthread_mutex_unlock(&c->iolock);
+    _xcb_unlock_io(c);
     return ret;
 }
 
-xcb_generic_event_t *xcb_poll_for_event(xcb_connection_t *c, int *error)
+xcb_generic_event_t *xcb_poll_for_event(xcb_connection_t *c)
 {
+    xcb_generic_event_t *ret = 0;
     if(!c->has_error)
     {
-        xcb_generic_event_t *ret = 0;
-        int success;
-        pthread_mutex_lock(&c->iolock);
+        _xcb_lock_io(c);
         /* FIXME: follow X meets Z architecture changes. */
-        success = _xcb_in_read(c);
-        if(success)
+        if(_xcb_in_read(c)) /* _xcb_in_read shuts down the connection on error */
             ret = get_event(c);
-        pthread_mutex_unlock(&c->iolock);
-        if(success)
-        {
-            if(error)
-                *error = 0;
-            return ret;
-        }
+        _xcb_unlock_io(c);
     }
-    if(error)
-        *error = -1;
-    else
-    {
-        fprintf(stderr, "xcb_poll_for_event: I/O error occured, but no handler provided.\n");
-        abort();
-    }
-    return 0;
+    return ret;
 }
 
 xcb_generic_error_t *xcb_request_check(xcb_connection_t *c, xcb_void_cookie_t cookie)

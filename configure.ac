@@ -3,7 +3,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT([libxcb],
-        0.9,
+        0.9.92,
         [xcb@lists.freedesktop.org])
 AC_CONFIG_SRCDIR([xcb.pc.in])
 AM_INIT_AUTOMAKE([foreign dist-bzip2])
@@ -34,7 +34,7 @@ fi
 AC_SUBST(HTML_CHECK_RESULT)
 
 # Checks for pkg-config packages
-PKG_CHECK_MODULES(XCBPROTO, xcb-proto >= 0.9)
+PKG_CHECK_MODULES(XCBPROTO, xcb-proto >= 0.9.92)
 PKG_CHECK_MODULES(XAU, xau)
 
 PKG_CHECK_MODULES(XDMCP, xdmcp,
@@ -58,7 +58,7 @@ AC_HEADER_STDC
 AC_SEARCH_LIBS(gethostbyname, nsl)
 AC_SEARCH_LIBS(connect, socket)
 
-xcbincludedir='${includedir}/X11/XCB'
+xcbincludedir='${includedir}/xcb'
 AC_SUBST(xcbincludedir)
 
 AC_ARG_WITH(opt,
@@ -119,6 +119,6 @@ AC_SUBST(CWARNFLAGS)
 GCC_CHECK_VISIBILITY()
 
 AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile])
-AC_CONFIG_FILES([xcb.pc xcb-composite.pc xcb-damage.pc xcb-dpms.pc xcb-glx.pc xcb-randr.pc xcb-record.pc xcb-render.pc xcb-res.pc xcb-screensaver.pc xcb-shape.pc xcb-shm.pc xcb-sync.pc xcb-xevie.pc xcb-xf86dri.pc xcb-xfixes.pc xcb-xprint.pc xcb-xtest.pc xcb-xv.pc xcb-xvmc.pc])
+AC_CONFIG_FILES([xcb.pc xcb-xlib.pc xcb-composite.pc xcb-damage.pc xcb-dpms.pc xcb-glx.pc xcb-randr.pc xcb-record.pc xcb-render.pc xcb-res.pc xcb-screensaver.pc xcb-shape.pc xcb-shm.pc xcb-sync.pc xcb-xevie.pc xcb-xf86dri.pc xcb-xfixes.pc xcb-xprint.pc xcb-xtest.pc xcb-xv.pc xcb-xvmc.pc])
 
 AC_OUTPUT

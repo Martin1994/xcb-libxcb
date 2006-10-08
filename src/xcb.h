@@ -224,12 +224,10 @@ xcb_generic_event_t *xcb_wait_for_event(xcb_connection_t *c);
  * Returns the next event or error from the server, if one is
  * available, or returns @c NULL otherwise. If no event is available, that
  * might be because an I/O error like connection close occurred while
- * attempting to read the next event. The @p error parameter is a
- * pointer to an int to be filled in with the I/O error status of the
- * operation. If @p error is @c NULL, terminates the application when an
- * I/O error occurs.
+ * attempting to read the next event, in which case the connection is
+ * shut down when this function returns.
  */
-xcb_generic_event_t *xcb_poll_for_event(xcb_connection_t *c, int *error);
+xcb_generic_event_t *xcb_poll_for_event(xcb_connection_t *c);
 
 /**
  * @brief Return the error for a request, or NULL if none can ever arrive.
@@ -408,6 +406,19 @@ xcb_connection_t *xcb_connect(const char *displayname, int *screenp);
  * be set to that screen; otherwise @p screenp will be set to 0.
  */
 xcb_connection_t *xcb_connect_to_display_with_auth_info(const char *display, xcb_auth_info_t *auth, int *screen);
+
+
+/* xcb_xid.c */
+
+/**
+ * @brief Allocates an XID for a new object.
+ * @param c: The connection.
+ * @return A newly allocated XID.
+ *
+ * Allocates an XID for a new object. Typically used just prior to
+ * various object creation functions, such as xcb_create_window.
+ */
+uint32_t xcb_generate_id(xcb_connection_t *c);
 
 
 /**

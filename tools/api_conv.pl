@@ -62,7 +62,7 @@ sub convert($$)
 	return "uint$1_t" if /^CARD(8|16|32)$/;
 	return "int$1_t" if /^INT(8|16|32)$/;
 	return "uint8_t" if $_ eq 'BOOL' or $_ eq 'BYTE';
-	return $_ if /^[A-Z]*_[A-Z_]*$/ or !/^XCB(.+)/;
+	return $_ if /^[A-Z0-9]*_[A-Z0-9_]*$/ or !/^XCB(.+)/;
 	my $const = defined $::const{$_};
 	$_ = $1;
 
@@ -93,4 +93,6 @@ sub convert($$)
 	return "xcb" . $_;
 }
 
+s/^(\s*#\s*include\s*<)X11\/XCB\//$1xcb\//;
 s/([_A-Za-z][_A-Za-z0-9]*)([ \t]*\()?/convert($1, defined $2) . ($2 or "")/eg;
+s/xcb_[a-z0-9_]*_new/xcb_generate_id/g;
