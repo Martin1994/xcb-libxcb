@@ -7,6 +7,8 @@ libxcb (1.0-1) experimental; urgency=low
     check first started shipping the pkg-config file.
   * Add Build-Depends on libpthread-stubs0-dev.
   * Add XS-Vcs-Git field.
+  * Cherry-pick post-1.0 changes from master:
+    * "NetBSD doesn't have AI_ADDRCONFIG: use it only if it's available."
 
  -- Josh Triplett <josh@freedesktop.org>  Fri, 24 Nov 2006 00:51:41 -0800
 
