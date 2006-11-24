@@ -47,6 +47,8 @@ authorization from the authors.
 
   <xsl:variable name="h" select="$mode = 'header'" />
   <xsl:variable name="c" select="$mode = 'source'" />
+
+  <xsl:variable name="need-string-h" select="//request/pad[@bytes != 1]" />
   
   <!-- String used to indent lines of code. -->
   <xsl:variable name="indent-string" select="'    '" />
@@ -342,7 +344,7 @@ authorization from the authors.
       </xsl:attribute>
       <field type="xcb_connection_t *" name="c" />
       <xsl:apply-templates select="$req/*[not(self::reply)]" mode="param" />
-      <do-request ref="{xcb:xcb-prefix($req/@name)}_request_t" opcode="{$req/@opcode}"
+      <do-request ref="{xcb:xcb-prefix($req/@name)}_request_t" opcode="{translate(xcb:xcb-prefix($req/@name), $lcase, $ucase)}"
                   checked="{$checked}">
         <xsl:if test="$req/reply">
           <xsl:attribute name="has-reply">true</xsl:attribute>
@@ -358,6 +360,7 @@ authorization from the authors.
         <field type="unsigned int" name="sequence" />
       </struct>
     </xsl:if>
+    <constant type="number" name="{xcb:xcb-prefix($req/@name)}" value="{$req/@opcode}" />
     <struct name="{xcb:xcb-prefix(@name)}_request_t">
       <field type="uint8_t" name="major_opcode" no-assign="true" />
       <xsl:if test="$ext">
@@ -587,7 +590,7 @@ authorization from the authors.
     </list>
   </xsl:template>
 
-  <xsl:template match="field|localfield" mode="param">
+  <xsl:template match="field" mode="param">
     <field>
       <xsl:attribute name="type">
         <xsl:call-template name="canonical-type-name" />
@@ -719,7 +722,11 @@ authorization from the authors.
     <l><xsl:value-of select="@ref" /> xcb_out;</l>
 
     <l />
-    <xsl:apply-templates select="$struct//*[(self::field or self::exprfield)
+    <xsl:if test="not ($ext) and not($struct//*[(self::field or self::exprfield or self::pad)
+                                                and not(boolean(@no-assign))])">
+      <l>xcb_out.pad0 = 0;</l>
+    </xsl:if>
+    <xsl:apply-templates select="$struct//*[(self::field or self::exprfield or self::pad)
                                             and not(boolean(@no-assign))]"
                          mode="assign" />
 
@@ -776,6 +783,14 @@ authorization from the authors.
       <xsl:apply-templates mode="output-expression" />
       <xsl:text>;</xsl:text>
     </l>
+  </xsl:template>
+
+  <xsl:template match="pad" mode="assign">
+    <xsl:variable name="padnum"><xsl:number /></xsl:variable>
+    <l><xsl:choose>
+        <xsl:when test="@bytes = 1">xcb_out.pad<xsl:value-of select="$padnum - 1" /> = 0;</xsl:when>
+        <xsl:otherwise>memset(xcb_out.pad<xsl:value-of select="$padnum - 1" />, 0, <xsl:value-of select="@bytes" />);</xsl:otherwise>
+    </xsl:choose></l>
   </xsl:template>
 
   <xsl:template match="iterator" mode="pass2">
@@ -978,8 +993,16 @@ authorization from the authors.
  * Edit at your peril.
  */
 </xsl:text>
-
 <xsl:if test="$h"><xsl:text>
+/**
+ * @defgroup XCB_</xsl:text><xsl:value-of select="$ext" /><xsl:text>_API XCB </xsl:text><xsl:value-of select="$ext" /><xsl:text> API
+ * @brief </xsl:text><xsl:value-of select="$ext" /><xsl:text> XCB Protocol Implementation.</xsl:text>
+<xsl:text>
+ * @{
+ **/
+</xsl:text>
+
+<xsl:text>
 #ifndef </xsl:text><xsl:value-of select="$guard" /><xsl:text>
 #define </xsl:text><xsl:value-of select="$guard" /><xsl:text>
 </xsl:text>
@@ -991,8 +1014,23 @@ authorization from the authors.
 <xsl:text>
 </xsl:text>
 </xsl:if>
+<xsl:if test="$h">
+    <xsl:choose>
+        <xsl:when test="string($ext)">
+  <xsl:text>#define XCB_</xsl:text><xsl:value-of select="translate($ext, $lcase, $ucase)"/><xsl:text>_MAJOR_VERSION </xsl:text><xsl:value-of select="/xcb/@major-version" /><xsl:text>
+</xsl:text>
+  <xsl:text>#define XCB_</xsl:text><xsl:value-of select="translate($ext, $lcase, $ucase)"/><xsl:text>_MINOR_VERSION </xsl:text><xsl:value-of select="/xcb/@minor-version" />
+  <xsl:text>
+  
+</xsl:text>
+    </xsl:when>
+  </xsl:choose>
+</xsl:if>
 
-<xsl:if test="$c"><xsl:text>
+<xsl:if test="$c">
+<xsl:if test="$need-string-h">
+#include &lt;string.h&gt;</xsl:if>
+<xsl:text>
 #include &lt;assert.h&gt;
 #include "xcbext.h"
 #include "</xsl:text><xsl:value-of select="$header" /><xsl:text>.h"
@@ -1004,6 +1042,10 @@ authorization from the authors.
 <xsl:if test="$h">
 <xsl:text>
 #endif
+
+/**
+ * @}
+ */
 </xsl:text>
 </xsl:if>
   </xsl:template>
@@ -1012,6 +1054,8 @@ authorization from the authors.
     <xsl:choose>
       <xsl:when test="@type = 'number'">
         <xsl:if test="$h">
+          <xsl:text>/** Opcode for </xsl:text><xsl:value-of select="@name"/><xsl:text>. */
+</xsl:text>
           <xsl:text>#define </xsl:text>
           <xsl:value-of select="translate(@name, $lcase, $ucase)" />
           <xsl:text> </xsl:text>
@@ -1072,6 +1116,10 @@ authorization from the authors.
           <xsl:with-param name="items" select="field/@type" />
         </xsl:call-template>
       </xsl:variable>
+      <xsl:text>/**
+ * @brief </xsl:text><xsl:value-of select="@name" /><xsl:text>
+ **/
+</xsl:text>
       <xsl:text>typedef </xsl:text>
       <xsl:if test="not(@kind)">struct</xsl:if><xsl:value-of select="@kind" />
       <xsl:text> </xsl:text>
@@ -1083,7 +1131,7 @@ authorization from the authors.
         <xsl:apply-templates select=".">
           <xsl:with-param name="type-lengths" select="$type-lengths" />
         </xsl:apply-templates>
-        <xsl:text>;
+        <xsl:text>; /**&lt; </xsl:text><xsl:text> */
 </xsl:text>
       </xsl:for-each>
       <xsl:text>} </xsl:text>
@@ -1128,8 +1176,31 @@ authorization from the authors.
       <xsl:call-template name="type-lengths">
         <xsl:with-param name="items" select="field/@type" />
       </xsl:call-template>
-    </xsl:variable>
-    <xsl:value-of select="@type" />
+  </xsl:variable>
+  <!-- Doxygen for functions in header. -->
+/*****************************************************************************
+ **
+ ** <xsl:value-of select="@type" />
+ <xsl:text> </xsl:text>
+ <xsl:value-of select="@name" />
+ ** <xsl:call-template name="list">
+     <xsl:with-param name="items">
+         <xsl:for-each select="field">
+             <item>
+                 <xsl:text>
+ ** @param </xsl:text>
+                 <xsl:apply-templates select=".">
+                     <xsl:with-param name="type-lengths" select="$type-lengths" />
+                 </xsl:apply-templates>
+             </item>
+         </xsl:for-each>
+     </xsl:with-param>
+ </xsl:call-template>
+ ** @returns <xsl:value-of select="@type" />
+ **
+ *****************************************************************************/
+ 
+<xsl:value-of select="@type" />
     <xsl:text>
 </xsl:text>
     <xsl:value-of select="$decl-open" />
@@ -1147,6 +1218,7 @@ authorization from the authors.
             <xsl:apply-templates select=".">
               <xsl:with-param name="type-lengths" select="$type-lengths" />
             </xsl:apply-templates>
+            <xsl:text>  /**&lt; */</xsl:text>
           </item>
         </xsl:for-each>
       </xsl:with-param>

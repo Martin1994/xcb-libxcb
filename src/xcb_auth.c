@@ -77,46 +77,48 @@ static int authname_match(enum auth_protos kind, char *name, int namelen)
     return 1;
 }
 
-static Xauth *get_authptr(struct sockaddr *sockname, unsigned int socknamelen)
+#define SIN6_ADDR(s) (&((struct sockaddr_in6 *)s)->sin6_addr)
+
+static Xauth *get_authptr(struct sockaddr *sockname, unsigned int socknamelen,
+                          int display)
 {
     char *addr = 0;
     int addrlen = 0;
     unsigned short family;
     char hostnamebuf[256];   /* big enough for max hostname */
     char dispbuf[40];   /* big enough to hold more than 2^64 base 10 */
-    char *display;
     int authnamelens[N_AUTH_PROTOS];
     int i;
 
     family = FamilyLocal; /* 256 */
-    switch (sockname->sa_family) {
-    case AF_INET:
-	/*block*/ {
-             struct sockaddr_in *si = (struct sockaddr_in *) sockname;
-	     assert(sizeof(*si) == socknamelen);
-	     addr = (char *) &si->sin_addr;
-	     addrlen = 4;
-	     if (ntohl(si->sin_addr.s_addr) != 0x7f000001)
-		 family = XCB_FAMILY_INTERNET;
-	     snprintf(dispbuf, sizeof(dispbuf), "%d", ntohs(si->sin_port) - X_TCP_PORT);
-	     display = dispbuf;
+    switch(sockname->sa_family)
+    {
+    case AF_INET6:
+        addr = (char *) SIN6_ADDR(sockname);
+        addrlen = sizeof(*SIN6_ADDR(sockname));
+        if(!IN6_IS_ADDR_V4MAPPED(SIN6_ADDR(sockname)))
+        {
+            if(!IN6_IS_ADDR_LOOPBACK(SIN6_ADDR(sockname)))
+                family = XCB_FAMILY_INTERNET_6;
+            break;
         }
-	break;
+        addr += 12;
+        /* if v4-mapped, fall through. */
+    case AF_INET:
+        if(!addr)
+            addr = (char *) &((struct sockaddr_in *)sockname)->sin_addr;
+        addrlen = sizeof(((struct sockaddr_in *)sockname)->sin_addr);
+        if(*(in_addr_t *) addr != htonl(INADDR_LOOPBACK))
+            family = XCB_FAMILY_INTERNET;
+        break;
     case AF_UNIX:
-	/*block*/ { 
-	    struct sockaddr_un *su = (struct sockaddr_un *) sockname;
-	    char *sockbuf = (char *) sockname;
-	    assert(sizeof(*su) >= socknamelen);
-	    sockbuf[socknamelen] = 0;	/* null-terminate path */
-	    display = strrchr(su->sun_path, 'X');
-	    if (display == 0)
-		return 0;   /* sockname is mangled somehow */
-	    display++;
-	}
-	break;
+        break;
     default:
         return 0;   /* cannot authenticate this family */
     }
+
+    snprintf(dispbuf, sizeof(dispbuf), "%d", display);
+
     if (family == FamilyLocal) {
         if (gethostname(hostnamebuf, sizeof(hostnamebuf)) == -1)
             return 0;   /* do not know own hostname */
@@ -128,7 +130,7 @@ static Xauth *get_authptr(struct sockaddr *sockname, unsigned int socknamelen)
 	authnamelens[i] = strlen(authnames[i]);
     return XauGetBestAuthByAddr (family,
                                  (unsigned short) addrlen, addr,
-                                 (unsigned short) strlen(display), display,
+                                 (unsigned short) strlen(dispbuf), dispbuf,
                                  N_AUTH_PROTOS, authnames, authnamelens);
 }
 
@@ -177,10 +179,30 @@ static int compute_auth(xcb_auth_info_t *info, Xauth *authptr, struct sockaddr *
 	    APPEND(info->data, j, si->sin_port);
 	}
 	break;
+        case AF_INET6:
+            /*block*/ {
+            struct sockaddr_in6 *si6 = (struct sockaddr_in6 *) sockname;
+            if(IN6_IS_ADDR_V4MAPPED(SIN6_ADDR(sockname)))
+            {
+                APPEND(info->data, j, si6->sin6_addr.s6_addr[12]);
+                APPEND(info->data, j, si6->sin6_port);
+            }
+            else
+            {
+                /* XDM-AUTHORIZATION-1 does not handle IPv6 correctly.  Do the
+                   same thing Xlib does: use all zeroes for the 4-byte address
+                   and 2-byte port number. */
+                uint32_t fakeaddr = 0;
+                uint16_t fakeport = 0;
+                APPEND(info->data, j, fakeaddr);
+                APPEND(info->data, j, fakeport);
+            }
+        }
+        break;
         case AF_UNIX:
             /*block*/ {
-	    long fakeaddr = htonl(0xffffffff - next_nonce());
-	    short fakeport = htons(getpid());
+	    uint32_t fakeaddr = htonl(0xffffffff - next_nonce());
+	    uint16_t fakeport = htons(getpid());
 	    APPEND(info->data, j, fakeaddr);
 	    APPEND(info->data, j, fakeport);
 	}
@@ -190,9 +212,7 @@ static int compute_auth(xcb_auth_info_t *info, Xauth *authptr, struct sockaddr *
             return 0;   /* do not know how to build this */
 	}
 	{
-	    long now;
-	    time(&now);
-	    now = htonl(now);
+	    uint32_t now = htonl(time(0));
 	    APPEND(info->data, j, now);
 	}
 	assert(j <= 192 / 8);
@@ -208,7 +228,7 @@ static int compute_auth(xcb_auth_info_t *info, Xauth *authptr, struct sockaddr *
     return 0;   /* Unknown authorization type */
 }
 
-int _xcb_get_auth_info(int fd, xcb_auth_info_t *info)
+int _xcb_get_auth_info(int fd, xcb_auth_info_t *info, int display)
 {
     /* code adapted from Xlib/ConnDis.c, xtrans/Xtranssocket.c,
        xtrans/Xtransutils.c */
@@ -218,17 +238,10 @@ int _xcb_get_auth_info(int fd, xcb_auth_info_t *info)
     Xauth *authptr = 0;
     int ret = 1;
 
-    /* ensure info has reasonable contents */
-    /* XXX This should be removed, but Jamey depends on it
-       somehow but can't remember how.  Principle: don't touch
-       someone else's data if you're borken. */
-    info->namelen = info->datalen = 0;
-    info->name = info->data = 0;
-
     if (getpeername(fd, sockname, &socknamelen) == -1)
         return 0;  /* can only authenticate sockets */
 
-    authptr = get_authptr(sockname, socknamelen);
+    authptr = get_authptr(sockname, socknamelen, display);
     if (authptr == 0)
         return 0;   /* cannot find good auth data */
 

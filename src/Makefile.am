@@ -15,12 +15,13 @@ lib_LTLIBRARIES = libxcb.la \
                   libxcb-xevie.la \
                   libxcb-xf86dri.la \
                   libxcb-xfixes.la \
+		  libxcb-xinerama.la \
                   libxcb-xprint.la \
                   libxcb-xtest.la \
                   libxcb-xv.la \
                   libxcb-xvmc.la
 
-EXTHEADERS = \
+EXTHEADERS =	xproto.h \
 		bigreq.h \
 		composite.h \
 		damage.h \
@@ -38,11 +39,12 @@ EXTHEADERS = \
 		xevie.h \
 		xf86dri.h \
 		xfixes.h \
+		xinerama.h \
 		xprint.h \
 		xtest.h \
 		xv.h \
 		xvmc.h
-EXTSOURCES = \
+EXTSOURCES =	xproto.c \
 		bigreq.c \
 		composite.c \
 		damage.c \
@@ -60,19 +62,12 @@ EXTSOURCES = \
 		xevie.c \
 		xf86dri.c \
 		xfixes.c \
+		xinerama.c \
 		xprint.c \
 		xtest.c \
 		xv.c \
 		xvmc.c
-EXTENSIONS = $(EXTSOURCES) $(EXTHEADERS)
-
-ESSENTIAL_EXTENSIONS = \
-		bigreq.h \
-		bigreq.c \
-		xc_misc.h \
-		xc_misc.c
-
-EXTENSION_XML = \
+EXTENSION_XML = xproto.xml \
 		bigreq.xml \
 		composite.xml \
 		damage.xml \
@@ -90,24 +85,21 @@ EXTENSION_XML = \
 		xevie.xml \
 		xf86dri.xml \
 		xfixes.xml \
+		xinerama.xml \
 		xprint.xml \
 		xtest.xml \
 		xvmc.xml \
 		xv.xml
 
-COREHEADERS = xproto.h
-CORESOURCES = xproto.c
-COREPROTO   = $(CORESOURCES) $(COREHEADERS)
-
-xcbinclude_HEADERS = xcb.h xcbext.h xcbxlib.h $(COREHEADERS) $(EXTHEADERS)
+xcbinclude_HEADERS = xcb.h xcbext.h xcbxlib.h $(EXTHEADERS)
 noinst_HEADERS = xcbint.h
 
-AM_CFLAGS = $(COPTFLAGS) $(CWARNFLAGS) $(CDEBUGFLAGS) $(XCBPROTO_CFLAGS) $(XAU_CFLAGS) $(XDMCP_CFLAGS)
-libxcb_la_LIBADD = $(XCBPROTO_LIBS) $(XAU_LIBS) $(XDMCP_LIBS)
+AM_CFLAGS = $(CWARNFLAGS) $(NEEDED_CFLAGS) $(XDMCP_CFLAGS)
+libxcb_la_LIBADD = $(NEEDED_LIBS) $(XDMCP_LIBS)
 libxcb_la_SOURCES = \
 		xcb_conn.c xcb_out.c xcb_in.c xcb_ext.c xcb_xid.c \
-		xcb_list.c xcb_util.c xcb_auth.c \
-		$(COREPROTO) $(ESSENTIAL_EXTENSIONS) c-client.xsl
+		xcb_list.c xcb_util.c xcb_auth.c c-client.xsl \
+		xproto.c bigreq.c xc_misc.c
 
 # Explanation for -version-info:
 # -version-info current:revision:age
@@ -118,8 +110,8 @@ libxcb_la_SOURCES = \
 #   and age to 0.
 libxcb_la_LDFLAGS = -version-info 1:0:0
 
-BUILT_SOURCES = $(COREPROTO) $(EXTENSIONS)
-CLEANFILES = $(COREPROTO) $(EXTENSIONS)
+BUILT_SOURCES = $(EXTSOURCES) $(EXTHEADERS)
+CLEANFILES = $(EXTSOURCES) $(EXTHEADERS) $(EXTENSION_XML)
 
 XCB_LIBS = libxcb.la
 
@@ -205,6 +197,10 @@ libxcb_xvmc_la_LDFLAGS = -version-info 0:0:0
 libxcb_xvmc_la_LIBADD = $(XCB_LIBS)
 libxcb_xvmc_la_SOURCES = xvmc.c xvmc.h
 
+libxcb_xinerama_la_LDFLAGS = -version-info 0:0:0
+libxcb_xinerama_la_LIBADD = $(XCB_LIBS)
+libxcb_xinerama_la_SOURCES = xinerama.c xinerama.h
+
 $(EXTHEADERS) $(EXTSOURCES): c-client.xsl
 
 SUFFIXES = .xml
@@ -223,11 +219,5 @@ SUFFIXES = .xml
 	            --stringparam extension-path $(XCBPROTO_XCBINCLUDEDIR)/ \
 	            -o $@ $(srcdir)/c-client.xsl $< 
 
-xproto.xml: $(XCBPROTO_XCBINCLUDEDIR)/xproto.xml
-	$(LN_S) $(XCBPROTO_XCBINCLUDEDIR)/xproto.xml $@
-
 $(EXTENSION_XML):
-	for i in $(EXTENSION_XML) ; do \
-           rm -f $$i ; \
-           $(LN_S) $(XCBPROTO_XCBINCLUDEDIR)/$$i $$i ; \
-        done
+	$(LN_S) -f $(XCBPROTO_XCBINCLUDEDIR)/$@ $@
