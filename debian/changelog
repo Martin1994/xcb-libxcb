@@ -11,6 +11,7 @@ libxcb (1.0-1) experimental; urgency=low
     * "NetBSD doesn't have AI_ADDRCONFIG: use it only if it's available."
     * "Use substitition variables in xcb-xinerama.pc.in, not instances of their
        values"
+  * Add new library, -dev, and -dbg packages for libxcb-xinerama.
 
  -- Josh Triplett <josh@freedesktop.org>  Fri, 24 Nov 2006 00:51:41 -0800
 

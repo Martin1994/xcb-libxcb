@@ -1117,6 +1117,71 @@ Description: X C Binding, xfixes extension, debugging symbols
  .
  Homepage: http://xcb.freedesktop.org
 
+Package: libxcb-xinerama0
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: X C Binding, xinerama extension
+ This package contains the library files needed to run software using
+ libxcb-xinerama, the xinerama extension for the X C Binding.
+ .
+ The XCB library provides an interface to the X Window System protocol,
+ designed to replace the Xlib interface.  XCB provides several advantages over
+ Xlib:
+ .
+  * Size: small library and lower memory footprint
+  * Latency hiding: batch several requests and wait for the replies later
+  * Direct protocol access: one-to-one mapping between interface and protocol
+  * Thread support: access XCB from multiple threads, with no explicit locking
+  * Easy creation of new extensions: automatically generates interface from
+    machine-parsable protocol descriptions
+ .
+ Homepage: http://xcb.freedesktop.org
+
+Package: libxcb-xinerama0-dev
+Section: libdevel
+Architecture: any
+Depends: libxcb-xinerama0 (= ${Source-Version}), libxcb1-dev
+Description: X C Binding, xinerama extension, development files
+ This package contains the header and library files needed to build software
+ using libxcb-xinerama, the xinerama extension for the X C Binding.
+ .
+ The XCB library provides an interface to the X Window System protocol,
+ designed to replace the Xlib interface.  XCB provides several advantages over
+ Xlib:
+ .
+  * Size: small library and lower memory footprint
+  * Latency hiding: batch several requests and wait for the replies later
+  * Direct protocol access: one-to-one mapping between interface and protocol
+  * Thread support: access XCB from multiple threads, with no explicit locking
+  * Easy creation of new extensions: automatically generates interface from
+    machine-parsable protocol descriptions
+ .
+ Homepage: http://xcb.freedesktop.org
+
+Package: libxcb-xinerama0-dbg
+Priority: extra
+Section: libdevel
+Architecture: any
+Depends: libxcb-xinerama0 (= ${Source-Version})
+Description: X C Binding, xinerama extension, debugging symbols
+ This package contains the debugging symbols associated with
+ libxcb-xinerama, the xinerama extension for the X C Binding.  gdb will
+ automatically use these symbols when debugging libxcb-xinerama.
+ .
+ The XCB library provides an interface to the X Window System protocol,
+ designed to replace the Xlib interface.  XCB provides several advantages over
+ Xlib:
+ .
+  * Size: small library and lower memory footprint
+  * Latency hiding: batch several requests and wait for the replies later
+  * Direct protocol access: one-to-one mapping between interface and protocol
+  * Thread support: access XCB from multiple threads, with no explicit locking
+  * Easy creation of new extensions: automatically generates interface from
+    machine-parsable protocol descriptions
+ .
+ Homepage: http://xcb.freedesktop.org
+
 Package: libxcb-xprint0
 Section: libs
 Architecture: any
