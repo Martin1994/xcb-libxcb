@@ -6,7 +6,7 @@ libxcb (1.0-1) experimental; urgency=low
   * Add version to Build-Depends on check, requiring 0.9.4-2 or newer, when
     check first started shipping the pkg-config file.
   * Add Build-Depends on libpthread-stubs0-dev.
-  * Add XS-X-Vcs-Git field.
+  * Add XS-Vcs-Git field.
 
  -- Josh Triplett <josh@freedesktop.org>  Fri, 24 Nov 2006 00:51:41 -0800
 
