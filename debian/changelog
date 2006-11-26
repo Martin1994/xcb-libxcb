@@ -2,6 +2,8 @@ libxcb (1.0-2) unstable; urgency=low
 
   * Incorporate NMU by Julien Cristau; thanks, Julien!
   * Add XS-Vcs-Browser field to debian/control.
+  * Cherry-pick post-1.0 changes from master:
+    * " Fix unit tests for FreeBSD"
   * Upload to unstable.
 
  -- Josh Triplett <josh@freedesktop.org>  Mon, 21 May 2007 12:48:40 -0700
