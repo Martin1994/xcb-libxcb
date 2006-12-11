@@ -1,4 +1,4 @@
 usr/include/xcb/screensaver.h
 usr/lib/libxcb-screensaver.a
 usr/lib/libxcb-screensaver.so
-usr/lib/pkgconfig/xcb-screensaver.pc usr/share/pkgconfig
+usr/lib/pkgconfig/xcb-screensaver.pc

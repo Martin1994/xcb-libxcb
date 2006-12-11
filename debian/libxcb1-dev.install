@@ -5,4 +5,4 @@ usr/include/xcb/xcbext.h
 usr/include/xcb/xproto.h
 usr/lib/libxcb.a
 usr/lib/libxcb.so
-usr/lib/pkgconfig/xcb.pc usr/share/pkgconfig
+usr/lib/pkgconfig/xcb.pc

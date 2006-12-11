@@ -12,8 +12,10 @@ libxcb (1.0-1) experimental; urgency=low
     * "Use substitition variables in xcb-xinerama.pc.in, not instances of their
        values"
   * Add new library, -dev, and -dbg packages for libxcb-xinerama.
+  * Install pkg-config files to /usr/lib/pkgconfig, not
+    /usr/share/pkgconfig.
 
- -- Josh Triplett <josh@freedesktop.org>  Fri, 24 Nov 2006 00:51:41 -0800
+ -- Josh Triplett <josh@freedesktop.org>  Sun, 10 Dec 2006 16:27:28 -0800
 
 libxcb (0.9.92-1) experimental; urgency=low
 
