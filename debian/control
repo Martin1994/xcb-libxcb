@@ -3,7 +3,7 @@ Priority: optional
 Section: libdevel
 Maintainer: XCB Developers <xcb@lists.freedesktop.org>
 Uploaders: Jamey Sharp <sharpone@debian.org>, Josh Triplett <josh@freedesktop.org>
-Build-Depends: libxau-dev, libxdmcp-dev, xcb-proto (>= 1.0), libpthread-stubs0-dev (>= 0.1-1), cdbs (>= 0.4.40), debhelper (>= 5.0.0), pkg-config, xsltproc, check (>= 0.9.4-2), binutils (>= 2.12.90.0.9)
+Build-Depends: libxau-dev, libxdmcp-dev, xcb-proto (>= 1.0), libpthread-stubs0-dev (>= 0.1-1), cdbs (>= 0.4.40), debhelper (>= 5.0.0), pkg-config, xsltproc (>= 1.1.19-1), check (>= 0.9.4-2), binutils (>= 2.12.90.0.9)
 Standards-Version: 3.7.2
 XS-Vcs-Git: git://anongit.freedesktop.org/git/xcb/libxcb
 
