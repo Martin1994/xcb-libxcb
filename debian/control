@@ -33,6 +33,8 @@ Package: libxcb1-dev
 Section: libdevel
 Architecture: any
 Depends: libxcb1 (= ${Source-Version}), libpthread-stubs0-dev, libxau-dev (>= 1:1.0.0-1), libxdmcp-dev (>= 1:1.0.0-1)
+Conflicts: libxcb0-dev
+Replaces: libxcb0-dev
 Description: X C Binding, development files
  This package contains the header and library files needed to build software
  using libxcb, the X C Binding.

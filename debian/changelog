@@ -1,3 +1,10 @@
+libxcb (1.0-3) unstable; urgency=low
+
+  * libxcb1-dev: Add Conflicts and Replaces for old libxcb0-dev packages
+    from experimental. (Closes: #407376)
+
+ -- Josh Triplett <josh@freedesktop.org>  Tue, 22 May 2007 12:01:50 -0700
+
 libxcb (1.0-2) unstable; urgency=low
 
   * Incorporate NMU by Julien Cristau; thanks, Julien!
