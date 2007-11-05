@@ -97,31 +97,19 @@ authorization from the authors.
     <xsl:param name="name" />
     <func:result>
       <xsl:text>xcb</xsl:text>
-      <xsl:choose>
-        <xsl:when test="/xcb/@extension-name = 'RandR'">
-          <xsl:text>_randr</xsl:text>
-        </xsl:when>
-        <xsl:when test="/xcb/@extension-name = 'ScreenSaver'">
-          <xsl:text>_screensaver</xsl:text>
-        </xsl:when>
-        <xsl:when test="/xcb/@extension-name = 'XF86Dri'">
-          <xsl:text>_xf86dri</xsl:text>
-        </xsl:when>
-        <xsl:when test="/xcb/@extension-name = 'XFixes'">
-          <xsl:text>_xfixes</xsl:text>
-        </xsl:when>
-        <xsl:when test="/xcb/@extension-name = 'XvMC'">
-          <xsl:text>_xvmc</xsl:text>
-        </xsl:when>
-        <xsl:when test="/xcb/@extension-name">
-          <xsl:text>_</xsl:text>
-          <xsl:call-template name="camelcase-to-underscore">
-            <xsl:with-param name="camelcase" select="/xcb/@extension-name" />
-          </xsl:call-template>
-        </xsl:when>
-        <xsl:otherwise>
-        </xsl:otherwise>
-      </xsl:choose>
+      <xsl:if test="/xcb/@extension-name">
+	<xsl:text>_</xsl:text>
+	<xsl:choose>
+	  <xsl:when test="/xcb/@extension-multiword = 'true' or /xcb/@extension-multiword = '1'">
+	    <xsl:call-template name="camelcase-to-underscore">
+	      <xsl:with-param name="camelcase" select="/xcb/@extension-name" />
+	    </xsl:call-template>
+	  </xsl:when>
+	  <xsl:otherwise>
+	    <xsl:value-of select="translate(/xcb/@extension-name, $ucase, $lcase)"/>
+	  </xsl:otherwise>
+	</xsl:choose>
+      </xsl:if>
       <xsl:if test="$name">
         <xsl:text>_</xsl:text>
         <xsl:call-template name="camelcase-to-underscore">
@@ -342,6 +330,24 @@ authorization from the authors.
           <xsl:with-param name="request" select="$req" />
         </xsl:call-template>
       </xsl:attribute>
+      <doc>/**</doc>
+      <doc> * Delivers a request to the X server</doc>
+      <doc> * @param c The connection</doc>
+      <doc> * @return A cookie</doc>
+      <doc> *</doc>
+      <doc> * Delivers a request to the X server.</doc>
+      <doc> * </doc>
+      <xsl:if test="$checked='true' and not($req/reply)">
+        <doc> * This form can be used only if the request will not cause</doc>
+        <doc> * a reply to be generated. Any returned error will be</doc>
+        <doc> * saved for handling by xcb_request_check().</doc>
+      </xsl:if>
+      <xsl:if test="$checked='false' and $req/reply">
+        <doc> * This form can be used only if the request will cause</doc>
+        <doc> * a reply to be generated. Any returned error will be</doc>
+        <doc> * placed in the event queue.</doc>
+      </xsl:if>
+      <doc> */</doc>
       <field type="xcb_connection_t *" name="c" />
       <xsl:apply-templates select="$req/*[not(self::reply)]" mode="param" />
       <do-request ref="{xcb:xcb-prefix($req/@name)}_request_t" opcode="{translate(xcb:xcb-prefix($req/@name), $lcase, $ucase)}"
@@ -390,6 +396,18 @@ authorization from the authors.
       </struct>
       <iterator-functions ref="{xcb:xcb-prefix(@name)}" kind="_reply" />
       <function type="{xcb:xcb-prefix(@name)}_reply_t *" name="{xcb:xcb-prefix(@name)}_reply">
+        <doc>/**</doc>
+        <doc> * Return the reply</doc>
+        <doc> * @param c      The connection</doc>
+        <doc> * @param cookie The cookie</doc>
+        <doc> * @param e      The xcb_generic_error_t supplied</doc>
+        <doc> *</doc>
+        <doc> * Returns the reply of the request asked by</doc>
+        <doc> * </doc>
+        <doc> * The parameter @p e supplied to this function must be NULL if</doc>
+        <doc> * <xsl:value-of select="xcb:xcb-prefix(@name)" />_unchecked(). is used.</doc>
+        <doc> * Otherwise, it stores the error if any.</doc>
+        <doc> */</doc>
         <field type="xcb_connection_t *" name="c" />
         <field name="cookie">
           <xsl:attribute name="type">
@@ -924,6 +942,14 @@ authorization from the authors.
     </xsl:for-each>
     <xsl:if test="not($kind)">
       <function type="void" name="{$ref}_next">
+        <doc>/**</doc>
+        <doc> * Get the next element of the iterator</doc>
+        <doc> * @param i Pointer to a <xsl:value-of select="$ref" />_iterator_t</doc>
+        <doc> *</doc>
+        <doc> * Get the next element in the iterator. The member rem is</doc>
+        <doc> * decreased by one. The member data points to the next</doc>
+        <doc> * element. The member index is increased by sizeof(<xsl:value-of select="$ref" />_t)</doc>
+        <doc> */</doc>
         <field type="{$ref}_iterator_t *" name="i" />
         <xsl:choose>
           <xsl:when test="$struct/list[not(@fixed)]">
@@ -942,6 +968,15 @@ authorization from the authors.
         </xsl:choose>
       </function>
       <function type="xcb_generic_iterator_t" name="{$ref}_end">
+        <doc>/**</doc>
+        <doc> * Return the iterator pointing to the last element</doc>
+        <doc> * @param i An <xsl:value-of select="$ref" />_iterator_t</doc>
+        <doc> * @return  The iterator pointing to the last element</doc>
+        <doc> *</doc>
+        <doc> * Set the current element in the iterator to the last element.</doc>
+        <doc> * The member rem is set to 0. The member data points to the</doc>
+        <doc> * last element.</doc>
+        <doc> */</doc>
         <field type="{$ref}_iterator_t" name="i" />
         <l>xcb_generic_iterator_t ret;</l>
         <xsl:choose>
@@ -1178,6 +1213,10 @@ authorization from the authors.
       </xsl:call-template>
   </xsl:variable>
   <!-- Doxygen for functions in header. -->
+    <xsl:if test="$h">
+      <xsl:apply-templates select="doc" mode="function-doc">
+      </xsl:apply-templates>
+    </xsl:if>
 /*****************************************************************************
  **
  ** <xsl:value-of select="@type" />
@@ -1240,6 +1279,11 @@ authorization from the authors.
 
 </xsl:text>
     </xsl:if>
+  </xsl:template>
+
+  <xsl:template match="doc" mode="function-doc">
+    <xsl:value-of select="." /><xsl:text>
+</xsl:text>
   </xsl:template>
 
   <xsl:template match="l" mode="function-body">

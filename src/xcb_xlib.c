@@ -28,6 +28,38 @@
 
 #include <assert.h>
 
+#ifdef HAVE_BACKTRACE
+#include <execinfo.h>
+#include <stdio.h>
+#include <stdlib.h>
+#endif
+
+static void xcb_xlib_printbt(void)
+{
+#ifdef HAVE_BACKTRACE
+	void *array[20];
+	int size;
+	char **strings;
+	int i;
+
+	size = backtrace(array, 20);
+	strings = backtrace_symbols(array, size);
+
+	fprintf(stderr, "Locking assertion failure.  Backtrace:\n");
+
+	for (i = 0; i < size; ++i)
+		fprintf(stderr, "#%i %s\n", i, strings[i]);
+
+	free(strings);
+#endif
+}
+
+#ifndef NDEBUG
+#define xcb_assert(c,x) do { if (!(x)) { xcb_xlib_printbt(); if (!(c)->xlib.sloppy_lock) assert(x); } } while(0)
+#else
+#define xcb_assert(c,x)
+#endif
+
 unsigned int xcb_get_request_sent(xcb_connection_t *c)
 {
     if(c->has_error)
@@ -38,7 +70,7 @@ unsigned int xcb_get_request_sent(xcb_connection_t *c)
 void xcb_xlib_lock(xcb_connection_t *c)
 {
     _xcb_lock_io(c);
-    assert(!c->xlib.lock);
+    xcb_assert(c, !c->xlib.lock);
     c->xlib.lock = 1;
     c->xlib.thread = pthread_self();
     _xcb_unlock_io(c);
@@ -47,8 +79,8 @@ void xcb_xlib_lock(xcb_connection_t *c)
 void xcb_xlib_unlock(xcb_connection_t *c)
 {
     _xcb_lock_io(c);
-    assert(c->xlib.lock);
-    assert(pthread_equal(c->xlib.thread, pthread_self()));
+    xcb_assert(c, c->xlib.lock);
+    xcb_assert(c, pthread_equal(c->xlib.thread, pthread_self()));
     c->xlib.lock = 0;
     pthread_cond_broadcast(&c->xlib.cond);
     _xcb_unlock_io(c);

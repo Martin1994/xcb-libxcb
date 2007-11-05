@@ -59,9 +59,10 @@
     <li><a class="section" href="#font">Handling text and fonts</a>
       <ol>
         <li><a class="subsection" href="#fontstruct">The Font structure</a>
-        <li>Loading a Font
-        <li>Assigning a Font to a Graphic Context
-        <li>Drawing text in a window
+        <li><a class="subsection" href="#openingfont">Opening a Font</a>
+        <li><a class="subsection" href="#assigningfont">Assigning a Font to a Graphic Context</a>
+        <li><a class="subsection" href="#drawingtext">Drawing text in a drawable</a>
+        <li><a class="subsection" href="#fontcompleteexample">Complete example</a>
       </ol>
     <li>Windows hierarchy
       <ol>
@@ -177,8 +178,9 @@
       level GUI toolkit like Motif,
       <a href="http://www.lesstif.org">LessTiff</a>,
       <a href="http://www.gtk.org">GTK</a>,
-      <a href="http://www.trolltech.com">QT</a> or
-      <a href="http://www.enlightenment.org">EWL</a>, or use
+      <a href="http://www.trolltech.com">QT</a>,
+      <a href="http://www.enlightenment.org">EWL</a>,
+      <a href="http://www.enlightenment.org">ETK</a>, or use
       <a href="http://cairographics.org">Cairo</a>.
       However,
       we need to start somewhere. More than this, knowing how things
@@ -386,7 +388,7 @@
 #include &lt;string.h&gt;
 #include &lt;sys/time.h&gt;
 
-#include &lt;X11/XCB/xcb.h&gt;
+#include &lt;xcb/xcb.h&gt;
 
 #include &lt;X11/Xlib.h&gt;
 
@@ -587,8 +589,8 @@ gcc -Wall prog.c -o prog `pkg-config --cflags --libs xcb`
       will be the one in the environment variable DISPLAY.
       </p>
       <pre class="code">
-<type>xcb_connection_t</type> *xcb_connect (<keyword>const</keyword> <type>char</type> *displayname,
-                               <type>int</type>        *screenp);
+<span class="type">xcb_connection_t</span> *xcb_connect (<span class="keyword">const</span> <span class="type">char</span> *displayname,
+                               <span class="type">int</span>        *screenp);
 </pre>
       <p>
       The second parameter returns the screen number used for the
@@ -596,24 +598,24 @@ gcc -Wall prog.c -o prog `pkg-config --cflags --libs xcb`
       and is opaque. Here is how the connection can be opened:
       </p>
       <pre class="code">
-#<include>include</include> <string>&lt;X11/XCB/xcb.h&gt;</string>
+#<span class="include">include</span> <span class="string">&lt;xcb/xcb.h&gt;</span>
 
-<type>int</type>
-<function>main</function> ()
+<span class="type">int</span>
+<span class="function">main</span> ()
 {
-  <type>xcb_connection_t</type> *c;
+  <span class="type">xcb_connection_t</span> *c;
 
   /* Open the connection to the X server. Use the DISPLAY environment variable as the default display name */
   c = xcb_connect (NULL, NULL);
 
-  <keyword>return</keyword> 0;
+  <span class="keyword">return</span> 0;
 }
 </pre>
       <p>
       To close a connection, it suffices to use:
       </p>
       <pre class="code">
-<type>void</type> xcb_disconnect (<type>xcb_connection_t</type> *c);
+<span class="type">void</span> xcb_disconnect (<span class="type">xcb_connection_t</span> *c);
 </pre>
       <div class="comp">
         <div class="title">
@@ -640,8 +642,7 @@ gcc -Wall prog.c -o prog `pkg-config --cflags --libs xcb`
         </ul>
         </div>
       </div>
-      <p>
-      </p>
+      <br>
       <li class="title"><a name="screen">Checking basic information about a connection</a>
       <p>
       Once we have opened a connection to an X server, we should check some
@@ -684,7 +685,7 @@ xcb_screen_iterator_t xcb_setup_roots_iterator (xcb_setup_t *R);
       <pre class="code">
 #include &lt;stdio.h&gt;
 
-#include &lt;X11/XCB/xcb.h&gt;
+#include &lt;xcb/xcb.h&gt;
 
 int
 main ()
@@ -706,7 +707,7 @@ main ()
     }
 
   printf ("\n");
-  printf ("Informations of screen %ld:\n", screen-&gt;root.xid);
+  printf ("Informations of screen %ld:\n", screen-&gt;root);
   printf ("  width.........: %d\n", screen-&gt;width_in_pixels);
   printf ("  height........: %d\n", screen-&gt;height_in_pixels);
   printf ("  white pixel...: %ld\n", screen-&gt;white_pixel);
@@ -723,15 +724,13 @@ main ()
       characterized by an Id. So, in XCB, a window is of type:
       </p>
       <pre class="code">
-typedef struct {
-    uint32_t xid;
-} xcb_window_t;
+typedef uint32_t xcb_window_t;
 </pre>
       <p>
       We first ask for a new Id for our window, with this function:
       </p>
       <pre class="code">
-xcb_window_t xcb_window_new(xcb_connection_t *c);
+xcb_window_t xcb_generate_id(xcb_connection_t *c);
 </pre>
       <p>
       Then, XCB supplies the following function to create new windows:
@@ -769,14 +768,14 @@ xcb_void_cookie_t xcb_map_window (xcb_connection_t *c,
       <pre class="code">
 #include &lt;unistd.h&gt;      /* pause() */
 
-#include &lt;X11/XCB/xcb.h&gt;
+#include &lt;xcb/xcb.h&gt;
 
 int
 main ()
 {
   xcb_connection_t *c;
   xcb_screen_t     *screen;
-  xcb_drawable_t    win;
+  xcb_window_t      win;
 
   /* Open the connection to the X server */
   c = xcb_connect (NULL, NULL);
@@ -785,12 +784,12 @@ main ()
   screen = xcb_setup_roots_iterator (xcb_get_setup (c)).data;
 
   /* Ask for our window's Id */
-  win.window = xcb_window_new(c);
+  win = xcb_generate_id(c);
 
   /* Create the window */
   xcb_create_window (c,                             /* Connection          */
                      XCB_COPY_FROM_PARENT,          /* depth (same as root)*/
-                     win.window,                    /* window Id           */
+                     win,                           /* window Id           */
                      screen-&gt;root,                  /* parent window       */
                      0, 0,                          /* x, y                */
                      150, 150,                      /* width, height       */
@@ -800,7 +799,7 @@ main ()
                      0, NULL);                      /* masks, not used yet */
 
   /* Map the window on the screen */
-  xcb_map_window (c, win.window);
+  xcb_map_window (c, win);
 
   /* Make sure commands are sent before we pause, so window is shown */
   xcb_flush (c);
@@ -836,8 +835,8 @@ int xcb_aux_sync (xcb_connection_t *c);
       now, we put it there.
       </p>
       <p>
-      The window that is created by the above code has a default
-      background (gray). This one can be set to a specific color,
+      The window that is created by the above code has a non defined
+      background. This one can be set to a specific color,
       thanks to the two last parameters of
       <span class="code">xcb_create_window()</span>, which are not
       described yet. See the subsections
@@ -862,7 +861,7 @@ int xcb_aux_sync (xcb_connection_t *c);
         </div>
         <div class="xcb">
         <ul>
-          <li>xcb_window_new ()
+          <li>xcb_generate_id ()
           <li>xcb_create_window ()
         </ul>
         </div>
@@ -887,16 +886,14 @@ int xcb_aux_sync (xcb_connection_t *c);
         a Graphics Context is, as a window, characterized by an Id:
         </p>
         <pre class="code">
-typedef struct {
-    uint32_t xid;
-} xcb_gcontext_t;
+typedef uint32_t xcb_gcontext_t;
 </pre>
         <p>
         We first ask the X server to attribute an Id to our graphic
         context with this function:
         </p>
         <pre class="code">
-xcb_gcontext_t xcb_gcontext_new (xcb_connection_t *c);
+xcb_gcontext_t xcb_generate_id (xcb_connection_t *c);
 </pre>
         <p>
         Then, we set the attributes of the graphic context with this function:
@@ -914,7 +911,7 @@ xcb_void_cookie_t xcb_create_gc (xcb_connection_t *c,
         draw in foreground with a black color.
         </p>
         <pre class="code">
-#include &lt;X11/XCB/xcb.h&gt;
+#include &lt;xcb/xcb.h&gt;
 
 int
 main ()
@@ -931,8 +928,8 @@ main ()
   screen = xcb_setup_roots_iterator (xcb_get_setup (c)).data;
 
   /* Create a black graphic context for drawing in the foreground */
-  win.window = screen-&gt;root;
-  black = xcb_gcontext_new (c);
+  win = screen-&gt;root;
+  black = xcb_generate_id (c);
   mask = XCB_GC_FOREGROUND;
   value[0] = screen-&gt;black_pixel;
   xcb_create_gc (c, black, win, mask, value);
@@ -970,7 +967,7 @@ main ()
           </div>
           <div class="xcb">
           <ul>
-            <li>xcb_gcontext_new ()
+            <li>xcb_generate_id ()
             <li>xcb_create_gc ()
           </ul>
           </div>
@@ -982,8 +979,9 @@ main ()
         change its attributes (for example, changing the foreground
         color we use to draw a line, or changing the attributes of the
         font we use to display strings. See Subsections Drawing with a
-        color and Assigning a Font to a Graphic Context). This is done
-        by using this function:
+        color and
+        <a href="#assigningfont">Assigning a Font to a Graphic Context</a>).
+        This is done by using this function:
         </p>
         <pre class="code">
 xcb_void_cookie_t xcb_change_gc (xcb_connection_t *c,           /* The XCB Connection */
@@ -1246,7 +1244,7 @@ xcb_void_cookie_t xcb_poly_fill_arc (xcb_connection_t *c,
 #include &lt;stdlib.h&gt;
 #include &lt;stdio.h&gt;
 
-#include &lt;X11/XCB/xcb.h&gt;
+#include &lt;xcb/xcb.h&gt;
 
 int
 main ()
@@ -1291,16 +1289,16 @@ main ()
   screen = xcb_setup_roots_iterator (xcb_get_setup (c)).data;
 
   /* Create black (foreground) graphic context */
-  win.window = screen-&gt;root;
+  win = screen-&gt;root;
 
-  foreground = xcb_gcontext_new (c);
+  foreground = xcb_generate_id (c);
   mask = XCB_GC_FOREGROUND | XCB_GC_GRAPHICS_EXPOSURES;
   values[0] = screen-&gt;black_pixel;
   values[1] = 0;
   xcb_create_gc (c, foreground, win, mask, values);
 
   /* Ask for our window's Id */
-  win.window = xcb_window_new(c);
+  win = xcb_generate_id(c);
 
   /* Create the window */
   mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
@@ -1308,7 +1306,7 @@ main ()
   values[1] = XCB_EVENT_MASK_EXPOSURE;
   xcb_create_window (c,                             /* Connection          */
                      XCB_COPY_FROM_PARENT,          /* depth               */
-                     win.window,                    /* window Id           */
+                     win,                           /* window Id           */
                      screen-&gt;root,                  /* parent window       */
                      0, 0,                          /* x, y                */
                      150, 150,                      /* width, height       */
@@ -1318,7 +1316,7 @@ main ()
                      mask, values);                 /* masks */
 
   /* Map the window on the screen */
-  xcb_map_window (c, win.window);
+  xcb_map_window (c, win);
 
 
   /* We flush the request */
@@ -1391,8 +1389,8 @@ main ()
         <pre class="code">
   mask = XCB_CW_EVENT_MASK;
   valwin[0] = XCB_EVENT_MASK_EXPOSURE;
-  win.window = xcb_window_new (c);
-  xcb_create_window (c, depth, win.window, root-&gt;root,
+  win = xcb_generate_id (c);
+  xcb_create_window (c, depth, win, root-&gt;root,
                      0, 0, 150, 150, 10,
                      XCB_WINDOW_CLASS_INPUT_OUTPUT, root-&gt;root_visual,
                      mask, valwin);
@@ -1405,8 +1403,8 @@ main ()
         <pre class="code">
   mask = XCB_CW_EVENT_MASK;
   valwin[0] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS;
-  win.window = xcb_window_new (c);
-  xcb_create_window (c, depth, win.window, root-&gt;root,
+  win = xcb_generate_id (c);
+  xcb_create_window (c, depth, win, root-&gt;root,
                      0, 0, 150, 150, 10,
                      XCB_WINDOW_CLASS_INPUT_OUTPUT, root-&gt;root_visual,
                      mask, valwin);
@@ -1894,7 +1892,7 @@ typedef xcb_key_press_event_t xcb_key_release_event_t;
 #include &lt;stdlib.h&gt;
 #include &lt;stdio.h&gt;
 
-#include &lt;X11/XCB/xcb.h&gt;
+#include &lt;xcb/xcb.h&gt;
 
 void
 print_modifiers (uint32_t mask)
@@ -1916,7 +1914,7 @@ main ()
 {
   xcb_connection_t    *c;
   xcb_screen_t        *screen;
-  xcb_drawable_t       win;
+  xcb_window_t         win;
   xcb_generic_event_t *e;
   uint32_t             mask = 0;
   uint32_t             values[2];
@@ -1928,7 +1926,7 @@ main ()
   screen = xcb_setup_roots_iterator (xcb_get_setup (c)).data;
 
   /* Ask for our window's Id */
-  win.window = xcb_window_new (c);
+  win = xcb_generate_id (c);
 
   /* Create the window */
   mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
@@ -1939,7 +1937,7 @@ main ()
               XCB_EVENT_MASK_KEY_PRESS      | XCB_EVENT_MASK_KEY_RELEASE;
   xcb_create_window (c,                             /* Connection          */
                      0,                             /* depth               */
-                     win.window,                    /* window Id           */
+                     win,                           /* window Id           */
                      screen-&gt;root,                  /* parent window       */
                      0, 0,                          /* x, y                */
                      150, 150,                      /* width, height       */
@@ -1949,7 +1947,7 @@ main ()
                      mask, values);                 /* masks */
 
   /* Map the window on the screen */
-  xcb_map_window (c, win.window);
+  xcb_map_window (c, win);
 
   xcb_flush (c);
 
@@ -1959,25 +1957,25 @@ main ()
       xcb_expose_event_t *ev = (xcb_expose_event_t *)e;
 
       printf ("Window %ld exposed. Region to be redrawn at location (%d,%d), with dimension (%d,%d)\n",
-              ev-&gt;window.xid, ev-&gt;x, ev-&gt;y, ev-&gt;width, ev-&gt;height);
+              ev-&gt;window, ev-&gt;x, ev-&gt;y, ev-&gt;width, ev-&gt;height);
       break;
     }
     case XCB_BUTTON_PRESS: {
       xcb_button_press_event_t *ev = (xcb_button_press_event_t *)e;
       print_modifiers(ev-&gt;state);
 
-      switch (ev-&gt;detail.id) {
+      switch (ev-&gt;detail) {
       case 4:
         printf ("Wheel Button up in window %ld, at coordinates (%d,%d)\n",
-                ev-&gt;event.xid, ev-&gt;event_x, ev-&gt;event_y);
+                ev-&gt;event, ev-&gt;event_x, ev-&gt;event_y);
         break;
       case 5:
         printf ("Wheel Button down in window %ld, at coordinates (%d,%d)\n",
-                ev-&gt;event.xid, ev-&gt;event_x, ev-&gt;event_y);
+                ev-&gt;event, ev-&gt;event_x, ev-&gt;event_y);
         break;
       default:
         printf ("Button %d pressed in window %ld, at coordinates (%d,%d)\n",
-                ev-&gt;detail.id, ev-&gt;event.xid, ev-&gt;event_x, ev-&gt;event_y);
+                ev-&gt;detail, ev-&gt;event, ev-&gt;event_x, ev-&gt;event_y);
       }
       break;
     }
@@ -1986,28 +1984,28 @@ main ()
       print_modifiers(ev-&gt;state);
 
       printf ("Button %d released in window %ld, at coordinates (%d,%d)\n",
-              ev-&gt;detail.id, ev-&gt;event.xid, ev-&gt;event_x, ev-&gt;event_y);
+              ev-&gt;detail, ev-&gt;event, ev-&gt;event_x, ev-&gt;event_y);
       break;
     }
     case XCB_MOTION_NOTIFY: {
       xcb_motion_notify_event_t *ev = (xcb_motion_notify_event_t *)e;
 
       printf ("Mouse moved in window %ld, at coordinates (%d,%d)\n",
-              ev-&gt;event.xid, ev-&gt;event_x, ev-&gt;event_y);
+              ev-&gt;event, ev-&gt;event_x, ev-&gt;event_y);
       break;
     }
     case XCB_ENTER_NOTIFY: {
       xcb_enter_notify_event_t *ev = (xcb_enter_notify_event_t *)e;
 
       printf ("Mouse entered window %ld, at coordinates (%d,%d)\n",
-              ev-&gt;event.xid, ev-&gt;event_x, ev-&gt;event_y);
+              ev-&gt;event, ev-&gt;event_x, ev-&gt;event_y);
       break;
     }
     case XCB_LEAVE_NOTIFY: {
       xcb_leave_notify_event_t *ev = (xcb_leave_notify_event_t *)e;
 
       printf ("Mouse left window %ld, at coordinates (%d,%d)\n",
-              ev-&gt;event.xid, ev-&gt;event_x, ev-&gt;event_y);
+              ev-&gt;event, ev-&gt;event_x, ev-&gt;event_y);
       break;
     }
     case XCB_KEY_PRESS: {
@@ -2015,7 +2013,7 @@ main ()
       print_modifiers(ev-&gt;state);
 
       printf ("Key pressed in window %ld\n",
-              ev-&gt;event.xid);
+              ev-&gt;event);
       break;
     }
     case XCB_KEY_RELEASE: {
@@ -2023,7 +2021,7 @@ main ()
       print_modifiers(ev-&gt;state);
 
       printf ("Key released in window %ld\n",
-              ev-&gt;event.xid);
+              ev-&gt;event);
       break;
     }
     default:
@@ -2051,22 +2049,314 @@ main ()
       <ol>
         <li class="subtitle"><a name="fontstruct">The Font structure</a>
         <p>
-        In order to support flexible fonts, a font structure is
+        In order to support flexible fonts, a font type is
         defined. You know what ? It's an Id:
         </p>
         <pre class="code">
-typedef struct {
-    uint32_t xid;
-} xcb_font_t;
+typedef uint32_t xcb_font_t;
 </pre>
         <p>
         It is used to contain information about a font, and is passed
         to several functions that handle fonts selection and text drawing.
+        We ask the X server to attribute an  Id to our font with the
+        function:
         </p>
+        <pre class="code">
+xcb_font_t xcb_generate_id (xcb_connection_t *c);
+</pre>
+        <br>
+        <li class="subtitle"><a name="openingfont">Opening a Font</a>
         <p>
-        <b>TODO:</b> example for picking a font and displaying some text.
-        Even better, also demonstrate translating keypresses to text.
+        To open a font, we use the following function:
         </p>
+        <pre class="code">
+xcb_void_cookie_t xcb_open_font (xcb_connection_t *c,
+                                 xcb_font_t        fid,
+                                 uint16_t          name_len,
+                                 const char       *name);
+</pre>
+        <p>
+        The <span class="code">fid</span> parameter is the font Id
+        defined by <span class="code">xcb_generate_id()</span> (see
+        above). The <span class="code">name</span> parameter is the
+        name of the font you want to open. Use the command
+        <span class="code">xlsfonts</span> in a terminal to know which
+        are the fonts available on your computer. The parameter
+        <span class="code">name_len</span> is the length of the name
+        of the font (given by <span class="code">strlen()</span>).
+        </p>
+        <li class="subtitle"><a name="assigningfont">Assigning a Font to a Graphic Context</a>
+        <p>
+        Once a font is opened, you have to create a Graphic Context
+        that will contain the informations about the color of the
+        foreground and the background used when you draw a text in a
+        Drawable. Here is an exemple of a Graphic Context that will
+        allow us to draw an opened font with a black foreground and a
+        white background:
+        </p>
+        <pre class="code">
+  /*
+   * c is the connection
+   * screen is the screen where the window is displayed
+   * window is the window in which we will draw the text
+   * font is the opened font
+   */
+
+  uint32_t             value_list[3];
+  xcb_gcontext_t       gc;
+  uint32_t             mask;
+
+  gc = xcb_generate_id (c);
+  mask = XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT;
+  value_list[0] = screen->black_pixel;
+  value_list[1] = screen->white_pixel;
+  value_list[2] = font;
+  xcb_create_gc (c, gc, window, mask, value_list);
+
+  /* The font is not needed anymore, so we close it */
+  xcb_close_font (c, font);
+</pre>
+        <li class="subtitle"><a name="drawingtext">Drawing text in a drawable</a>
+        <p>
+        To draw a text in a drawable, we use the following function:
+        </p>
+        <pre class="code">
+xcb_void_cookie_t xcb_image_text_8 (xcb_connection_t *c,
+                                    uint8_t           string_len,
+                                    xcb_drawable_t    drawable,
+                                    xcb_gcontext_t    gc,
+                                    int16_t           x,
+                                    int16_t           y,
+                                    const char       *string);
+</pre>
+        <p>
+        The <span class="code">string</span> parameter is the text to
+        draw. The location of the drawing is given by the parameters
+        <span class="code">x</span> and <span class="code">y</span>.
+        The base line of the text is exactly the parameter
+        <span class="code">y</span>.
+        </p>
+        <li class="subtitle"><a name="fontcompleteexample">Complete example</a>
+        <p>
+        This example draw a text at 10 pixels (for the base line) of
+        the bottom of a window. Pressing the Esc key exits the program.
+        </p>
+        <pre class="code">
+#include &lt;stdlib.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+#include &lt;xcb/xcb.h&gt;
+
+#define WIDTH 300
+#define HEIGHT 100
+
+
+
+static xcb_gc_t gc_font_get (xcb_connection_t *c,
+                             xcb_screen_t     *screen,
+                             xcb_window_t      window,
+                             const char       *font_name);
+
+static void text_draw (xcb_connection_t *c,
+                       xcb_screen_t     *screen,
+                       xcb_window_t      window,
+                       int16_t           x1,
+                       int16_t           y1,
+                       const char       *label);
+
+static void
+text_draw (xcb_connection_t *c,
+           xcb_screen_t     *screen,
+           xcb_window_t      window,
+           int16_t           x1,
+           int16_t           y1,
+           const char       *label)
+{
+  xcb_void_cookie_t    cookie_gc;
+  xcb_void_cookie_t    cookie_text;
+  xcb_generic_error_t *error;
+  xcb_gcontext_t       gc;
+  uint8_t              length;
+
+  length = strlen (label);
+
+  gc = gc_font_get(c, screen, window, "7x13");
+
+  cookie_text = xcb_image_text_8_checked (c, length, window, gc,
+                                          x1,
+                                          y1, label);
+  error = xcb_request_check (c, cookie_text);
+  if (error) {
+    fprintf (stderr, "ERROR: can't paste text : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+
+  cookie_gc = xcb_free_gc (c, gc);
+  error = xcb_request_check (c, cookie_gc);
+  if (error) {
+    fprintf (stderr, "ERROR: can't free gc : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+}
+
+static xcb_gc_t
+gc_font_get (xcb_connection_t *c,
+             xcb_screen_t     *screen,
+             xcb_window_t      window,
+             const char       *font_name)
+{
+  uint32_t             value_list[3];
+  xcb_void_cookie_t    cookie_font;
+  xcb_void_cookie_t    cookie_gc;
+  xcb_generic_error_t *error;
+  xcb_font_t           font;
+  xcb_gcontext_t       gc;
+  uint32_t             mask;
+
+  font = xcb_generate_id (c);
+  cookie_font = xcb_open_font_checked (c, font,
+                                       strlen (font_name),
+                                       font_name);
+
+  error = xcb_request_check (c, cookie_font);
+  if (error) {
+    fprintf (stderr, "ERROR: can't open font : %d\n", error->error_code);
+    xcb_disconnect (c);
+    return -1;
+  }
+
+  gc = xcb_generate_id (c);
+  mask = XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT;
+  value_list[0] = screen->black_pixel;
+  value_list[1] = screen->white_pixel;
+  value_list[2] = font;
+  cookie_gc = xcb_create_gc_checked (c, gc, window, mask, value_list);
+  error = xcb_request_check (c, cookie_gc);
+  if (error) {
+    fprintf (stderr, "ERROR: can't create gc : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+
+  cookie_font = xcb_close_font_checked (c, font);
+  error = xcb_request_check (c, cookie_font);
+  if (error) {
+    fprintf (stderr, "ERROR: can't close font : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+
+  return gc;
+}
+
+int main ()
+{
+  xcb_screen_iterator_t screen_iter;
+  xcb_connection_t     *c;
+  const xcb_setup_t    *setup;
+  xcb_screen_t         *screen;
+  xcb_generic_event_t  *e;
+  xcb_generic_error_t  *error;
+  xcb_void_cookie_t     cookie_window;
+  xcb_void_cookie_t     cookie_map;
+  xcb_window_t          window;
+  uint32_t              mask;
+  uint32_t              values[2];
+  int                   screen_number;
+
+  /* getting the connection */
+  c = xcb_connect (NULL, &amp;screen_number);
+  if (!c) {
+    fprintf (stderr, "ERROR: can't connect to an X server\n");
+    return -1;
+  }
+
+  /* getting the current screen */
+  setup = xcb_get_setup (c);
+
+  screen = NULL;
+  screen_iter = xcb_setup_roots_iterator (setup);
+  for (; screen_iter.rem != 0; --screen_number, xcb_screen_next (&amp;screen_iter))
+    if (screen_number == 0)
+      {
+        screen = screen_iter.data;
+        break;
+      }
+  if (!screen) {
+    fprintf (stderr, "ERROR: can't get the current screen\n");
+    xcb_disconnect (c);
+    return -1;
+  }
+
+  /* creating the window */
+  window = xcb_generate_id (c);
+  mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
+  values[0] = screen->white_pixel;
+  values[1] =
+    XCB_EVENT_MASK_KEY_RELEASE |
+    XCB_EVENT_MASK_BUTTON_PRESS |
+    XCB_EVENT_MASK_EXPOSURE |
+    XCB_EVENT_MASK_POINTER_MOTION;
+  cookie_window = xcb_create_window_checked (c,
+                                             screen->root_depth,
+                                             window, screen->root,
+                                             20, 200, WIDTH, HEIGHT,
+                                             0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+                                             screen->root_visual,
+                                             mask, values);
+  cookie_map = xcb_map_window_checked (c, window);
+
+  /* error managing */
+  error = xcb_request_check (c, cookie_window);
+  if (error) {
+    fprintf (stderr, "ERROR: can't create window : %d\n", error->error_code);
+    xcb_disconnect (c);
+    return -1;
+  }
+  error = xcb_request_check (c, cookie_map);
+  if (error) {
+    fprintf (stderr, "ERROR: can't map window : %d\n", error->error_code);
+    xcb_disconnect (c);
+    return -1;
+  }
+
+  xcb_flush(c);
+
+  while (1) {
+    e = xcb_poll_for_event(c);
+    if (e) {
+      switch (e->response_type &amp; ~0x80) {
+      case XCB_EXPOSE: {
+        char *text;
+
+        text = "Press ESC key to exit...";
+        text_draw (c, screen, window, 10, HEIGHT - 10, text);
+        break;
+      }
+      case XCB_KEY_RELEASE: {
+        xcb_key_release_event_t *ev;
+
+        ev = (xcb_key_release_event_t *)e;
+
+        switch (ev->detail) {
+          /* ESC */
+        case 9:
+          free (e);
+          xcb_disconnect (c);
+          return 0;
+        }
+      }
+      }
+      free (e);
+    }
+  }
+
+  return 0;
+}
+</pre>
       </ol>
       <li class="title"><a name="wm">Interacting with the window manager</a>
       <p>
@@ -2097,9 +2387,7 @@ typedef struct {
         Id. Their type are <span class="code">xcb_atom_t</span>:
         </p>
         <pre class="code">
-typedef struct {
-    uint32_t xid;
-} xcb_atom_t;
+typedef uint32_t xcb_atom_t;
 </pre>
         <p>
         To change the property of a window, we use the following
@@ -2142,8 +2430,8 @@ xcb_void_cookie_t xcb_change_property (xcb_connection_t *c,       /* Connection 
         <pre class="code">
 #include &lt;string.h&gt;
 
-#include &lt;X11/XCB/xcb.h&gt;
-#include &lt;X11/XCB/xcb_atom.h&gt;
+#include &lt;xcb/xcb.h&gt;
+#include &lt;xcb/xcb_atom.h&gt;
 
 int
 main ()
@@ -2163,7 +2451,7 @@ main ()
   screen = xcb_setup_roots_iterator (xcb_get_setup (c)).data;
 
   /* Ask for our window's Id */
-  win = xcb_window_new (c);
+  win = xcb_generate_id (c);
 
   /* Create the window */
   xcb_create_window (c,                             /* Connection          */
@@ -2659,9 +2947,7 @@ xcb_get_window_attributes_reply_t *xcb_get_window_attributes_reply (xcb_connecti
         In XCB, a color map is (as often in X) an Id:
         </p>
         <pre class="code">
-typedef struct {
-    uint32_t xid;
-} xcb_colormap_t;
+typedef uint32_t xcb_colormap_t;
 </pre>
         <p>
         In order to access the screen's default color map, you just
@@ -2673,7 +2959,7 @@ typedef struct {
         <pre class="code">
 #include &lt;stdio.h&gt;
 
-#include &lt;X11/XCB/xcb.h&gt;
+#include &lt;xcb/xcb.h&gt;
 
 int
 main ()
@@ -2702,7 +2988,7 @@ main ()
         map, with this function:
         </p>
         <pre class="code">
-xcb_colormap_t xcb_colormap_new (xcb_connection_t *c);
+xcb_colormap_t xcb_generate_id (xcb_connection_t *c);
 </pre>
         <p>
         Then, we create the color map with
@@ -2718,7 +3004,7 @@ xcb_void_cookie_t xcb_create_colormap (xcb_connection_t *c,       /* Pointer to 
         Here is an example of creation of a new color map:
         </p>
         <pre class="code">
-#include &lt;X11/XCB/xcb.h&gt;
+#include &lt;xcb/xcb.h&gt;
 
 int
 main ()
@@ -2734,7 +3020,7 @@ main ()
 
   /* We create the window win here*/
 
-  cmap = xcb_colormap_new (c);
+  cmap = xcb_generate_id (c);
   xcb_create_colormap (c, XCB_COLORMAP_ALLOC_NONE, cmap, win, screen-&gt;root_visual);
 
   return 0;
@@ -2763,7 +3049,7 @@ xcb_void_cookie_t xcb_free_colormap (xcb_connection_t *c,   /* The connection */
           </div>
           <div class="xcb">
             <ul>
-              <li>xcb_colormap_new ()
+              <li>xcb_generate_id ()
               <li>xcb_create_colormap ()
             </ul>
           </div>
@@ -2819,7 +3105,7 @@ xcb_alloc_color_reply_t *xcb_alloc_color_reply (xcb_connection_t        *c,
       <pre class="code">
 #include &lt;malloc.h&gt;
 
-#include &lt;X11/XCB/xcb.h&gt;
+#include &lt;xcb/xcb.h&gt;
 
 int
 main ()
@@ -2836,7 +3122,7 @@ main ()
 
   /* We create the window win here*/
 
-  cmap = xcb_colormap_new (c);
+  cmap = xcb_generate_id (c);
   xcb_create_colormap (c, XCB_COLORMAP_ALLOC_NONE, cmap, win, screen-&gt;root_visual);
 
   rep = xcb_alloc_color_reply (c, xcb_alloc_color (c, cmap, 65535, 0, 0), NULL);
@@ -2902,19 +3188,14 @@ main ()
         of X pixmap in XCB is an Id like a window:
         </p>
         <pre class="code">
-typedef struct {
-    uint32_t xid;
-} xcb_pixmap_t;
+typedef uint32_t xcb_pixmap_t;
 </pre>
         <p>
-        In order to make the difference between a window and a pixmap,
-        XCB introduces a drawable type, which is a <b>union</b>
+        Like Xlib, there is no difference between a Drawable, a Window
+        or a Pixmap:
         </p>
         <pre class="code">
-typedef union {
-    xcb_window_t window;
-    xcb_pixmap_t pixmap;
-} xcb_drawable_t;
+typedef uint32_t xcb_drawable_t;
 </pre>
         <p>
         in order to avoid confusion between a window and a pixmap. The
@@ -2946,7 +3227,7 @@ typedef union {
         Id to our pixmap, with this function:
         </p>
         <pre class="code">
-xcb_pixmap_t xcb_pixmap_new (xcb_connection_t *c);
+xcb_pixmap_t xcb_generate_id (xcb_connection_t *c);
 </pre>
         <p>
          Then, XCB supplies the following function to create new pixmaps:
@@ -3039,18 +3320,18 @@ xcb_void_cookie_t xcb_free_pixmap (xcb_connection_t *c,        /* Pointer to the
         the function <span class="code">xcb_create_glyph_cursor</span>:
         </p>
         <pre class="code">
-xcb_void_cookie_t xcb_create_glyph_cursor_checked (xcb_connection_t *c,
-                                                   xcb_cursor_t      cid,
-                                                   xcb_font_t        source_font, /* font for the source glyph */
-                                                   xcb_font_t        mask_font,   /* font for the mask glyph or XCB_NONE */
-                                                   uint16_t          source_char, /* character glyph for the source */
-                                                   uint16_t          mask_char,   /* character glyph for the mask */
-                                                   uint16_t          fore_red,    /* red value for the foreground of the source */
-                                                   uint16_t          fore_green,  /* green value for the foreground of the source */
-                                                   uint16_t          fore_blue,   /* blue value for the foreground of the source */
-                                                   uint16_t          back_red,    /* red value for the background of the source */
-                                                   uint16_t          back_green,  /* green value for the background of the source */
-                                                   uint16_t          back_blue)   /* blue value for the background of the source */
+xcb_void_cookie_t xcb_create_glyph_cursor (xcb_connection_t *c,
+                                           xcb_cursor_t      cid,
+                                           xcb_font_t        source_font, /* font for the source glyph */
+                                           xcb_font_t        mask_font,   /* font for the mask glyph or XCB_NONE */
+                                           uint16_t          source_char, /* character glyph for the source */
+                                           uint16_t          mask_char,   /* character glyph for the mask */
+                                           uint16_t          fore_red,    /* red value for the foreground of the source */
+                                           uint16_t          fore_green,  /* green value for the foreground of the source */
+                                           uint16_t          fore_blue,   /* blue value for the foreground of the source */
+                                           uint16_t          back_red,    /* red value for the background of the source */
+                                           uint16_t          back_green,  /* green value for the background of the source */
+                                           uint16_t          back_blue)   /* blue value for the background of the source */
 </pre>
         <p>
         <b>TODO</b>: Describe <span class="code">source_char</span>
@@ -3061,7 +3342,7 @@ xcb_void_cookie_t xcb_create_glyph_cursor_checked (xcb_connection_t *c,
         <p>
         So we first open that font (see <a href="#loadfont">Loading a Font</a>)
         and create the new cursor. As for every X ressource, we have to
-        ask for an X id with <span class="code">xcb_cursor_new</span>
+        ask for an X id with <span class="code">xcb_generate_id</span>
         first:
         </p>
         <pre class="code">
@@ -3070,10 +3351,10 @@ xcb_cursor_t         cursor;
 
 /* The connection is set */
 
-font = xcb_font_new (conn);
+font = xcb_generate_id (conn);
 xcb_open_font (conn, font, strlen ("cursor"), "cursor");
 
-cursor = xcb_cursor_new (conn);
+cursor = xcb_generate_id (conn);
 xcb_create_glyph_cursor (conn, cursor, font, font,
                          58, 58 + 1,
                          0, 0, 0,
@@ -3116,7 +3397,7 @@ uint32_t value_list;
 /* The cursor is already created */
 
 mask = XCB_CWCURSOR;
-value_list = cursor.xid;
+value_list = cursor;
 xcb_change_window_attributes (conn, window, mask, &amp;value_list);
 </pre>
         <p>
@@ -3124,8 +3405,391 @@ xcb_change_window_attributes (conn, window, mask, &amp;value_list);
         </p>
         <li class="subtitle"><a name="mousecursorexample">Complete example</a>
         <p>
-        <b>TODO</b>: to do...
+        The following example displays a window with a
+        button. When entering the window, the window cursor is changed
+        to an arrow. When clicking once on the button, the cursor is
+        changed to a hand. When clicking again on the button, the
+        cursor window gets back to the arrow. The Esc key exits the
+        application.
         </p>
+        <pre class="code">
+#include &lt;stdlib.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+#include &lt;xcb/xcb.h&gt;
+
+#define WIDTH 300
+#define HEIGHT 150
+
+
+
+static xcb_gc_t gc_font_get (xcb_connection_t *c,
+                             xcb_screen_t     *screen,
+                             xcb_window_t      window,
+                             const char       *font_name);
+
+static void button_draw (xcb_connection_t *c,
+                         xcb_screen_t     *screen,
+                         xcb_window_t      window,
+                         int16_t           x1,
+                         int16_t           y1,
+                         const char       *label);
+
+static void text_draw (xcb_connection_t *c,
+                       xcb_screen_t     *screen,
+                       xcb_window_t      window,
+                       int16_t           x1,
+                       int16_t           y1,
+                       const char       *label);
+
+static void cursor_set (xcb_connection_t *c,
+                        xcb_screen_t     *screen,
+                        xcb_window_t      window,
+                        int               cursor_id);
+
+
+static void
+button_draw (xcb_connection_t *c,
+             xcb_screen_t     *screen,
+             xcb_window_t      window,
+             int16_t           x1,
+             int16_t           y1,
+             const char       *label)
+{
+  xcb_point_t          points[5];
+  xcb_void_cookie_t    cookie_gc;
+  xcb_void_cookie_t    cookie_line;
+  xcb_void_cookie_t    cookie_text;
+  xcb_generic_error_t *error;
+  xcb_gcontext_t       gc;
+  int16_t              width;
+  int16_t              height;
+  uint8_t              length;
+  int16_t              inset;
+
+  length = strlen (label);
+  inset = 2;
+
+  gc = gc_font_get(c, screen, window, "7x13");
+
+  width = 7 * length + 2 * (inset + 1);
+  height = 13 + 2 * (inset + 1);
+  points[0].x = x1;
+  points[0].y = y1;
+  points[1].x = x1 + width;
+  points[1].y = y1;
+  points[2].x = x1 + width;
+  points[2].y = y1 - height;
+  points[3].x = x1;
+  points[3].y = y1 - height;
+  points[4].x = x1;
+  points[4].y = y1;
+  cookie_line = xcb_poly_line_checked (c, XCB_COORD_MODE_ORIGIN,
+                                       window, gc, 5, points);
+
+  error = xcb_request_check (c, cookie_line);
+  if (error) {
+    fprintf (stderr, "ERROR: can't draw lines : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+
+  cookie_text = xcb_image_text_8_checked (c, length, window, gc,
+                                          x1 + inset + 1,
+                                          y1 - inset - 1, label);
+  error = xcb_request_check (c, cookie_text);
+  if (error) {
+    fprintf (stderr, "ERROR: can't paste text : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+
+  cookie_gc = xcb_free_gc (c, gc);
+  error = xcb_request_check (c, cookie_gc);
+  if (error) {
+    fprintf (stderr, "ERROR: can't free gc : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+}
+
+static void
+text_draw (xcb_connection_t *c,
+           xcb_screen_t     *screen,
+           xcb_window_t      window,
+           int16_t           x1,
+           int16_t           y1,
+           const char       *label)
+{
+  xcb_void_cookie_t    cookie_gc;
+  xcb_void_cookie_t    cookie_text;
+  xcb_generic_error_t *error;
+  xcb_gcontext_t       gc;
+  uint8_t              length;
+
+  length = strlen (label);
+
+  gc = gc_font_get(c, screen, window, "7x13");
+
+  cookie_text = xcb_image_text_8_checked (c, length, window, gc,
+                                          x1,
+                                          y1, label);
+  error = xcb_request_check (c, cookie_text);
+  if (error) {
+    fprintf (stderr, "ERROR: can't paste text : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+
+  cookie_gc = xcb_free_gc (c, gc);
+  error = xcb_request_check (c, cookie_gc);
+  if (error) {
+    fprintf (stderr, "ERROR: can't free gc : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+}
+
+static xcb_gc_t
+gc_font_get (xcb_connection_t *c,
+             xcb_screen_t     *screen,
+             xcb_window_t      window,
+             const char       *font_name)
+{
+  uint32_t             value_list[3];
+  xcb_void_cookie_t    cookie_font;
+  xcb_void_cookie_t    cookie_gc;
+  xcb_generic_error_t *error;
+  xcb_font_t           font;
+  xcb_gcontext_t       gc;
+  uint32_t             mask;
+
+  font = xcb_generate_id (c);
+  cookie_font = xcb_open_font_checked (c, font,
+                                       strlen (font_name),
+                                       font_name);
+
+  error = xcb_request_check (c, cookie_font);
+  if (error) {
+    fprintf (stderr, "ERROR: can't open font : %d\n", error->error_code);
+    xcb_disconnect (c);
+    return -1;
+  }
+
+  gc = xcb_generate_id (c);
+  mask = XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT;
+  value_list[0] = screen->black_pixel;
+  value_list[1] = screen->white_pixel;
+  value_list[2] = font;
+  cookie_gc = xcb_create_gc_checked (c, gc, window, mask, value_list);
+  error = xcb_request_check (c, cookie_gc);
+  if (error) {
+    fprintf (stderr, "ERROR: can't create gc : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+
+  cookie_font = xcb_close_font_checked (c, font);
+  error = xcb_request_check (c, cookie_font);
+  if (error) {
+    fprintf (stderr, "ERROR: can't close font : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+
+  return gc;
+}
+
+static void
+cursor_set (xcb_connection_t *c,
+            xcb_screen_t     *screen,
+            xcb_window_t      window,
+            int               cursor_id)
+{
+  uint32_t             values_list[3];
+  xcb_void_cookie_t    cookie_font;
+  xcb_void_cookie_t    cookie_gc;
+  xcb_generic_error_t *error;
+  xcb_font_t           font;
+  xcb_cursor_t         cursor;
+  xcb_gcontext_t       gc;
+  uint32_t             mask;
+  uint32_t             value_list;
+
+  font = xcb_generate_id (c);
+  cookie_font = xcb_open_font_checked (c, font,
+                                       strlen ("cursor"),
+                                       "cursor");
+  error = xcb_request_check (c, cookie_font);
+  if (error) {
+    fprintf (stderr, "ERROR: can't open font : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+
+  cursor = xcb_generate_id (c);
+  xcb_create_glyph_cursor (c, cursor, font, font,
+                           cursor_id, cursor_id + 1,
+                           0, 0, 0,
+                           0, 0, 0);
+
+  gc = xcb_generate_id (c);
+  mask = XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT;
+  values_list[0] = screen->black_pixel;
+  values_list[1] = screen->white_pixel;
+  values_list[2] = font;
+  cookie_gc = xcb_create_gc_checked (c, gc, window, mask, values_list);
+  error = xcb_request_check (c, cookie_gc);
+  if (error) {
+    fprintf (stderr, "ERROR: can't create gc : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+
+  mask = XCB_CW_CURSOR;
+  value_list = cursor;
+  xcb_change_window_attributes (c, window, mask, &amp;value_list);
+
+  xcb_free_cursor (c, cursor);
+
+  cookie_font = xcb_close_font_checked (c, font);
+  error = xcb_request_check (c, cookie_font);
+  if (error) {
+    fprintf (stderr, "ERROR: can't close font : %d\n", error->error_code);
+    xcb_disconnect (c);
+    exit (-1);
+  }
+}
+
+int main ()
+{
+  xcb_screen_iterator_t screen_iter;
+  xcb_connection_t     *c;
+  const xcb_setup_t    *setup;
+  xcb_screen_t         *screen;
+  xcb_generic_event_t  *e;
+  xcb_generic_error_t  *error;
+  xcb_void_cookie_t     cookie_window;
+  xcb_void_cookie_t     cookie_map;
+  xcb_window_t          window;
+  uint32_t              mask;
+  uint32_t              values[2];
+  int                   screen_number;
+  uint8_t               is_hand = 0;
+
+  /* getting the connection */
+  c = xcb_connect (NULL, &amp;screen_number);
+  if (!c) {
+    fprintf (stderr, "ERROR: can't connect to an X server\n");
+    return -1;
+  }
+
+  /* getting the current screen */
+  setup = xcb_get_setup (c);
+
+  screen = NULL;
+  screen_iter = xcb_setup_roots_iterator (setup);
+  for (; screen_iter.rem != 0; --screen_number, xcb_screen_next (&amp;screen_iter))
+    if (screen_number == 0)
+      {
+        screen = screen_iter.data;
+        break;
+      }
+  if (!screen) {
+    fprintf (stderr, "ERROR: can't get the current screen\n");
+    xcb_disconnect (c);
+    return -1;
+  }
+
+  /* creating the window */
+  window = xcb_generate_id (c);
+  mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
+  values[0] = screen->white_pixel;
+  values[1] =
+    XCB_EVENT_MASK_KEY_RELEASE |
+    XCB_EVENT_MASK_BUTTON_PRESS |
+    XCB_EVENT_MASK_EXPOSURE |
+    XCB_EVENT_MASK_POINTER_MOTION;
+  cookie_window = xcb_create_window_checked (c,
+                                             screen->root_depth,
+                                             window, screen->root,
+                                             20, 200, WIDTH, HEIGHT,
+                                             0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
+                                             screen->root_visual,
+                                             mask, values);
+  cookie_map = xcb_map_window_checked (c, window);
+
+  /* error managing */
+  error = xcb_request_check (c, cookie_window);
+  if (error) {
+    fprintf (stderr, "ERROR: can't create window : %d\n", error->error_code);
+    xcb_disconnect (c);
+    return -1;
+  }
+  error = xcb_request_check (c, cookie_map);
+  if (error) {
+    fprintf (stderr, "ERROR: can't map window : %d\n", error->error_code);
+    xcb_disconnect (c);
+    return -1;
+  }
+
+  cursor_set (c, screen, window, 68);
+
+  xcb_flush(c);
+
+  while (1) {
+    e = xcb_poll_for_event(c);
+    if (e) {
+      switch (e->response_type &amp; ~0x80) {
+      case XCB_EXPOSE: {
+        char *text;
+
+        text = "click here to change cursor";
+        button_draw (c, screen, window,
+                     (WIDTH - 7 * strlen(text)) / 2,
+                     (HEIGHT - 16) / 2, text);
+
+        text = "Press ESC key to exit...";
+        text_draw (c, screen, window, 10, HEIGHT - 10, text);
+        break;
+      }
+      case XCB_BUTTON_PRESS: {
+        xcb_button_press_event_t *ev;
+        int                       length;
+
+        ev = (xcb_button_press_event_t *)e;
+        length = strlen ("click here to change cursor");
+
+        if ((ev->event_x &gt;= (WIDTH - 7 * length) / 2) &amp;&amp;
+            (ev->event_x &lt;= ((WIDTH - 7 * length) / 2 + 7 * length + 6)) &amp;&amp;
+            (ev->event_y &gt;= (HEIGHT - 16) / 2 - 19) &amp;&amp;
+            (ev->event_y &lt;= ((HEIGHT - 16) / 2)))
+          is_hand = 1 - is_hand;
+
+        is_hand ? cursor_set (c, screen, window, 58) : cursor_set (c, screen, window, 68);
+      }
+      case XCB_KEY_RELEASE: {
+        xcb_key_release_event_t *ev;
+
+        ev = (xcb_key_release_event_t *)e;
+
+        switch (ev->detail) {
+          /* ESC */
+        case 9:
+          free (e);
+          xcb_disconnect (c);
+          return 0;
+        }
+      }
+      }
+      free (e);
+    }
+  }
+
+  return 0;
+}
+</pre>
       </ol>
       <li class="title"><a name="translation">Translation of basic Xlib functions and macros</a>
       <p>
@@ -3438,8 +4102,7 @@ default_screen = screen_of_display (c, screen_default_nbr);
 /* default_screen contains now the default root window, or a NULL window if no screen is found */
 </pre>
           <li class="subtitle"><a name="RootWindow">RootWindow / RootWindowOfScreen</a>
-          <p>
-          </p>
+          <br>
           <pre class="code">
 xcb_connection_t *c;
 xcb_screen_t     *screen;
@@ -3529,7 +4192,7 @@ if (screen) {
 
     visual_iter = xcb_depth_visuals_iterator (depth_iter.data);
     for (; visual_iter.rem; xcb_visualtype_next (&amp;visual_iter)) {
-      if (screen-&gt;root_visual.id == visual_iter.data-&gt;visual_id.id) {
+      if (screen-&gt;root_visual == visual_iter.data-&gt;visual_id) {
         visual_type = visual_iter.data;
         break;
       }
@@ -3560,8 +4223,8 @@ if (screen) {
   uint32_t       mask;
   uint32_t       values[2];
 
-  gc = xcb_gcontext_new (c);
-  draw.window = screen-&gt;root;
+  gc = xcb_generate_id (c);
+  draw = screen-&gt;root;
   mask = XCB_GC_FOREGROUND | XCB_GC_BACKGROUND;
   values[0] = screen-&gt;black_pixel;
   values[1] = screen-&gt;white_pixel;
