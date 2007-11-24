@@ -3,10 +3,11 @@ Priority: optional
 Section: libdevel
 Maintainer: XCB Developers <xcb@lists.freedesktop.org>
 Uploaders: Jamey Sharp <sharpone@debian.org>, Josh Triplett <josh@freedesktop.org>
-Build-Depends: libxau-dev, libxdmcp-dev, xcb-proto (>= 1.0), libpthread-stubs0-dev (>= 0.1-1), cdbs (>= 0.4.40), debhelper (>= 5.0.0), pkg-config, xsltproc (>= 1.1.19-1), check (>= 0.9.4-2), binutils (>= 2.12.90.0.9)
+Build-Depends: libxau-dev, libxdmcp-dev, xcb-proto (>= 1.1), xcb-proto (<< 2.0), libpthread-stubs0-dev (>= 0.1-1), cdbs (>= 0.4.40), debhelper (>= 5.0.0), pkg-config, xsltproc (>= 1.1.19-1), check (>= 0.9.4-2), binutils (>= 2.12.90.0.9)
 Standards-Version: 3.7.2
-XS-Vcs-Git: git://anongit.freedesktop.org/git/xcb/libxcb
-XS-Vcs-Browser: http://gitweb.freedesktop.org/?p=xcb/libxcb.git
+Homepage: http://xcb.freedesktop.org
+Vcs-Git: git://anongit.freedesktop.org/git/xcb/libxcb
+Vcs-Browser: http://gitweb.freedesktop.org/?p=xcb/libxcb.git
 
 Package: libxcb1
 Section: libs
@@ -26,13 +27,11 @@ Description: X C Binding
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb1-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb1 (= ${Source-Version}), libpthread-stubs0-dev, libxau-dev (>= 1:1.0.0-1), libxdmcp-dev (>= 1:1.0.0-1)
+Depends: libxcb1 (= ${binary:Version}), libpthread-stubs0-dev, libxau-dev (>= 1:1.0.0-1), libxdmcp-dev (>= 1:1.0.0-1)
 Conflicts: libxcb0-dev
 Replaces: libxcb0-dev
 Description: X C Binding, development files
@@ -49,14 +48,12 @@ Description: X C Binding, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb1-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb1 (= ${Source-Version})
+Depends: libxcb1 (= ${binary:Version})
 Description: X C Binding, debugging symbols
  This package contains the debugging symbols associated with libxcb, the X C
  Binding.  gdb will automatically use these symbols when debugging libxcb.
@@ -71,8 +68,6 @@ Description: X C Binding, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xlib0
 Section: libs
@@ -94,13 +89,11 @@ Description: X C Binding, Xlib/XCB interface library
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xlib0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-xlib0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-xlib0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, Xlib/XCB interface library, development files
  This package contains the header and library files needed to build software
  using libxcb-xlib, the Xlib/XCB interface for the X C Binding.  libxcb-xlib
@@ -117,14 +110,12 @@ Description: X C Binding, Xlib/XCB interface library, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xlib0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-xlib0 (= ${Source-Version})
+Depends: libxcb-xlib0 (= ${binary:Version})
 Description: X C Binding, Xlib/XCB interface library, debugging symbols
  This package contains the debugging symbols associated with libxcb-xlib, the
  Xlib/XCB interface for the X C Binding.  gdb will automatically use these
@@ -142,8 +133,6 @@ Description: X C Binding, Xlib/XCB interface library, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-composite0
 Section: libs
@@ -163,13 +152,11 @@ Description: X C Binding, composite extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-composite0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-composite0 (= ${Source-Version}), libxcb1-dev, libxcb-xfixes0-dev
+Depends: libxcb-composite0 (= ${binary:Version}), libxcb1-dev, libxcb-xfixes0-dev
 Description: X C Binding, composite extension, development files
  This package contains the header and library files needed to build software
  using libxcb-composite, the composite extension for the X C Binding.
@@ -184,14 +171,12 @@ Description: X C Binding, composite extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-composite0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-composite0 (= ${Source-Version})
+Depends: libxcb-composite0 (= ${binary:Version})
 Description: X C Binding, composite extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-composite, the composite extension for the X C Binding.  gdb will
@@ -207,8 +192,6 @@ Description: X C Binding, composite extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-damage0
 Section: libs
@@ -228,13 +211,11 @@ Description: X C Binding, damage extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-damage0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-damage0 (= ${Source-Version}), libxcb1-dev, libxcb-xfixes0-dev
+Depends: libxcb-damage0 (= ${binary:Version}), libxcb1-dev, libxcb-xfixes0-dev
 Description: X C Binding, damage extension, development files
  This package contains the header and library files needed to build software
  using libxcb-damage, the damage extension for the X C Binding.
@@ -249,14 +230,12 @@ Description: X C Binding, damage extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-damage0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-damage0 (= ${Source-Version})
+Depends: libxcb-damage0 (= ${binary:Version})
 Description: X C Binding, damage extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-damage, the damage extension for the X C Binding.  gdb will
@@ -272,8 +251,6 @@ Description: X C Binding, damage extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-dpms0
 Section: libs
@@ -293,13 +270,11 @@ Description: X C Binding, dpms extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-dpms0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-dpms0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-dpms0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, dpms extension, development files
  This package contains the header and library files needed to build software
  using libxcb-dpms, the dpms extension for the X C Binding.
@@ -314,14 +289,12 @@ Description: X C Binding, dpms extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-dpms0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-dpms0 (= ${Source-Version})
+Depends: libxcb-dpms0 (= ${binary:Version})
 Description: X C Binding, dpms extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-dpms, the dpms extension for the X C Binding.  gdb will
@@ -337,8 +310,6 @@ Description: X C Binding, dpms extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-glx0
 Section: libs
@@ -358,13 +329,11 @@ Description: X C Binding, glx extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-glx0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-glx0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-glx0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, glx extension, development files
  This package contains the header and library files needed to build software
  using libxcb-glx, the glx extension for the X C Binding.
@@ -379,14 +348,12 @@ Description: X C Binding, glx extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-glx0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-glx0 (= ${Source-Version})
+Depends: libxcb-glx0 (= ${binary:Version})
 Description: X C Binding, glx extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-glx, the glx extension for the X C Binding.  gdb will
@@ -402,8 +369,6 @@ Description: X C Binding, glx extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-randr0
 Section: libs
@@ -423,13 +388,11 @@ Description: X C Binding, randr extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-randr0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-randr0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-randr0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, randr extension, development files
  This package contains the header and library files needed to build software
  using libxcb-randr, the randr extension for the X C Binding.
@@ -444,14 +407,12 @@ Description: X C Binding, randr extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-randr0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-randr0 (= ${Source-Version})
+Depends: libxcb-randr0 (= ${binary:Version})
 Description: X C Binding, randr extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-randr, the randr extension for the X C Binding.  gdb will
@@ -467,8 +428,6 @@ Description: X C Binding, randr extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-record0
 Section: libs
@@ -488,13 +447,11 @@ Description: X C Binding, record extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-record0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-record0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-record0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, record extension, development files
  This package contains the header and library files needed to build software
  using libxcb-record, the record extension for the X C Binding.
@@ -509,14 +466,12 @@ Description: X C Binding, record extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-record0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-record0 (= ${Source-Version})
+Depends: libxcb-record0 (= ${binary:Version})
 Description: X C Binding, record extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-record, the record extension for the X C Binding.  gdb will
@@ -532,8 +487,6 @@ Description: X C Binding, record extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-render0
 Section: libs
@@ -553,13 +506,11 @@ Description: X C Binding, render extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-render0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-render0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-render0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, render extension, development files
  This package contains the header and library files needed to build software
  using libxcb-render, the render extension for the X C Binding.
@@ -574,14 +525,12 @@ Description: X C Binding, render extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-render0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-render0 (= ${Source-Version})
+Depends: libxcb-render0 (= ${binary:Version})
 Description: X C Binding, render extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-render, the render extension for the X C Binding.  gdb will
@@ -597,8 +546,6 @@ Description: X C Binding, render extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-res0
 Section: libs
@@ -618,13 +565,11 @@ Description: X C Binding, res extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-res0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-res0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-res0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, res extension, development files
  This package contains the header and library files needed to build software
  using libxcb-res, the res extension for the X C Binding.
@@ -639,14 +584,12 @@ Description: X C Binding, res extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-res0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-res0 (= ${Source-Version})
+Depends: libxcb-res0 (= ${binary:Version})
 Description: X C Binding, res extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-res, the res extension for the X C Binding.  gdb will
@@ -662,8 +605,6 @@ Description: X C Binding, res extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-screensaver0
 Section: libs
@@ -683,13 +624,11 @@ Description: X C Binding, screensaver extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-screensaver0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-screensaver0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-screensaver0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, screensaver extension, development files
  This package contains the header and library files needed to build software
  using libxcb-screensaver, the screensaver extension for the X C Binding.
@@ -704,14 +643,12 @@ Description: X C Binding, screensaver extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-screensaver0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-screensaver0 (= ${Source-Version})
+Depends: libxcb-screensaver0 (= ${binary:Version})
 Description: X C Binding, screensaver extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-screensaver, the screensaver extension for the X C Binding.  gdb will
@@ -727,8 +664,6 @@ Description: X C Binding, screensaver extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-shape0
 Section: libs
@@ -748,13 +683,11 @@ Description: X C Binding, shape extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-shape0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-shape0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-shape0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, shape extension, development files
  This package contains the header and library files needed to build software
  using libxcb-shape, the shape extension for the X C Binding.
@@ -769,14 +702,12 @@ Description: X C Binding, shape extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-shape0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-shape0 (= ${Source-Version})
+Depends: libxcb-shape0 (= ${binary:Version})
 Description: X C Binding, shape extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-shape, the shape extension for the X C Binding.  gdb will
@@ -792,8 +723,6 @@ Description: X C Binding, shape extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-shm0
 Section: libs
@@ -813,13 +742,11 @@ Description: X C Binding, shm extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-shm0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-shm0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-shm0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, shm extension, development files
  This package contains the header and library files needed to build software
  using libxcb-shm, the shm extension for the X C Binding.
@@ -834,14 +761,12 @@ Description: X C Binding, shm extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-shm0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-shm0 (= ${Source-Version})
+Depends: libxcb-shm0 (= ${binary:Version})
 Description: X C Binding, shm extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-shm, the shm extension for the X C Binding.  gdb will
@@ -857,8 +782,6 @@ Description: X C Binding, shm extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-sync0
 Section: libs
@@ -878,13 +801,11 @@ Description: X C Binding, sync extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-sync0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-sync0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-sync0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, sync extension, development files
  This package contains the header and library files needed to build software
  using libxcb-sync, the sync extension for the X C Binding.
@@ -899,14 +820,12 @@ Description: X C Binding, sync extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-sync0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-sync0 (= ${Source-Version})
+Depends: libxcb-sync0 (= ${binary:Version})
 Description: X C Binding, sync extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-sync, the sync extension for the X C Binding.  gdb will
@@ -922,8 +841,6 @@ Description: X C Binding, sync extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xevie0
 Section: libs
@@ -943,13 +860,11 @@ Description: X C Binding, xevie extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xevie0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-xevie0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-xevie0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, xevie extension, development files
  This package contains the header and library files needed to build software
  using libxcb-xevie, the xevie extension for the X C Binding.
@@ -964,14 +879,12 @@ Description: X C Binding, xevie extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xevie0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-xevie0 (= ${Source-Version})
+Depends: libxcb-xevie0 (= ${binary:Version})
 Description: X C Binding, xevie extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-xevie, the xevie extension for the X C Binding.  gdb will
@@ -987,8 +900,6 @@ Description: X C Binding, xevie extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xf86dri0
 Section: libs
@@ -1008,13 +919,11 @@ Description: X C Binding, xf86dri extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xf86dri0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-xf86dri0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-xf86dri0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, xf86dri extension, development files
  This package contains the header and library files needed to build software
  using libxcb-xf86dri, the xf86dri extension for the X C Binding.
@@ -1029,14 +938,12 @@ Description: X C Binding, xf86dri extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xf86dri0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-xf86dri0 (= ${Source-Version})
+Depends: libxcb-xf86dri0 (= ${binary:Version})
 Description: X C Binding, xf86dri extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-xf86dri, the xf86dri extension for the X C Binding.  gdb will
@@ -1052,8 +959,6 @@ Description: X C Binding, xf86dri extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xfixes0
 Section: libs
@@ -1073,13 +978,11 @@ Description: X C Binding, xfixes extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xfixes0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-xfixes0 (= ${Source-Version}), libxcb1-dev, libxcb-render0-dev, libxcb-shape0-dev
+Depends: libxcb-xfixes0 (= ${binary:Version}), libxcb1-dev, libxcb-render0-dev, libxcb-shape0-dev
 Description: X C Binding, xfixes extension, development files
  This package contains the header and library files needed to build software
  using libxcb-xfixes, the xfixes extension for the X C Binding.
@@ -1094,14 +997,12 @@ Description: X C Binding, xfixes extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xfixes0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-xfixes0 (= ${Source-Version})
+Depends: libxcb-xfixes0 (= ${binary:Version})
 Description: X C Binding, xfixes extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-xfixes, the xfixes extension for the X C Binding.  gdb will
@@ -1117,8 +1018,6 @@ Description: X C Binding, xfixes extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xinerama0
 Section: libs
@@ -1138,13 +1037,11 @@ Description: X C Binding, xinerama extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xinerama0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-xinerama0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-xinerama0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, xinerama extension, development files
  This package contains the header and library files needed to build software
  using libxcb-xinerama, the xinerama extension for the X C Binding.
@@ -1159,14 +1056,12 @@ Description: X C Binding, xinerama extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xinerama0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-xinerama0 (= ${Source-Version})
+Depends: libxcb-xinerama0 (= ${binary:Version})
 Description: X C Binding, xinerama extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-xinerama, the xinerama extension for the X C Binding.  gdb will
@@ -1182,8 +1077,6 @@ Description: X C Binding, xinerama extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xprint0
 Section: libs
@@ -1203,13 +1096,11 @@ Description: X C Binding, xprint extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xprint0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-xprint0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-xprint0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, xprint extension, development files
  This package contains the header and library files needed to build software
  using libxcb-xprint, the xprint extension for the X C Binding.
@@ -1224,14 +1115,12 @@ Description: X C Binding, xprint extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xprint0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-xprint0 (= ${Source-Version})
+Depends: libxcb-xprint0 (= ${binary:Version})
 Description: X C Binding, xprint extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-xprint, the xprint extension for the X C Binding.  gdb will
@@ -1247,8 +1136,6 @@ Description: X C Binding, xprint extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xtest0
 Section: libs
@@ -1268,13 +1155,11 @@ Description: X C Binding, xtest extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xtest0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-xtest0 (= ${Source-Version}), libxcb1-dev
+Depends: libxcb-xtest0 (= ${binary:Version}), libxcb1-dev
 Description: X C Binding, xtest extension, development files
  This package contains the header and library files needed to build software
  using libxcb-xtest, the xtest extension for the X C Binding.
@@ -1289,14 +1174,12 @@ Description: X C Binding, xtest extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xtest0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-xtest0 (= ${Source-Version})
+Depends: libxcb-xtest0 (= ${binary:Version})
 Description: X C Binding, xtest extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-xtest, the xtest extension for the X C Binding.  gdb will
@@ -1312,8 +1195,6 @@ Description: X C Binding, xtest extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xv0
 Section: libs
@@ -1333,13 +1214,11 @@ Description: X C Binding, xv extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xv0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-xv0 (= ${Source-Version}), libxcb1-dev, libxcb-shm0-dev
+Depends: libxcb-xv0 (= ${binary:Version}), libxcb1-dev, libxcb-shm0-dev
 Description: X C Binding, xv extension, development files
  This package contains the header and library files needed to build software
  using libxcb-xv, the xv extension for the X C Binding.
@@ -1354,14 +1233,12 @@ Description: X C Binding, xv extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xv0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-xv0 (= ${Source-Version})
+Depends: libxcb-xv0 (= ${binary:Version})
 Description: X C Binding, xv extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-xv, the xv extension for the X C Binding.  gdb will
@@ -1377,8 +1254,6 @@ Description: X C Binding, xv extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xvmc0
 Section: libs
@@ -1398,13 +1273,11 @@ Description: X C Binding, xvmc extension
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xvmc0-dev
 Section: libdevel
 Architecture: any
-Depends: libxcb-xvmc0 (= ${Source-Version}), libxcb1-dev, libxcb-xv0-dev
+Depends: libxcb-xvmc0 (= ${binary:Version}), libxcb1-dev, libxcb-xv0-dev
 Description: X C Binding, xvmc extension, development files
  This package contains the header and library files needed to build software
  using libxcb-xvmc, the xvmc extension for the X C Binding.
@@ -1419,14 +1292,12 @@ Description: X C Binding, xvmc extension, development files
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
 
 Package: libxcb-xvmc0-dbg
 Priority: extra
 Section: libdevel
 Architecture: any
-Depends: libxcb-xvmc0 (= ${Source-Version})
+Depends: libxcb-xvmc0 (= ${binary:Version})
 Description: X C Binding, xvmc extension, debugging symbols
  This package contains the debugging symbols associated with
  libxcb-xvmc, the xvmc extension for the X C Binding.  gdb will
@@ -1442,5 +1313,3 @@ Description: X C Binding, xvmc extension, debugging symbols
   * Thread support: access XCB from multiple threads, with no explicit locking
   * Easy creation of new extensions: automatically generates interface from
     machine-parsable protocol descriptions
- .
- Homepage: http://xcb.freedesktop.org
