@@ -142,7 +142,6 @@ tests/Makefile
 
 AC_CONFIG_FILES([
 xcb.pc
-xcb-xlib.pc
 xcb-composite.pc
 xcb-damage.pc
 xcb-dpms.pc
