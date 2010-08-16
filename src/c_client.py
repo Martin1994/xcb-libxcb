@@ -24,8 +24,8 @@ _clines = []
 _clevel = 0
 _ns = None
 
-# global variable to keep track of serializers and switch data types
-# due to weird dependencies, I see no way to do this more elegant at the moment
+# global variable to keep track of serializers and 
+# switch data types due to weird dependencies
 finished_serializers = []
 finished_sizeof = []
 finished_switch = []
@@ -298,13 +298,13 @@ def _c_type_setup(self, name, postfix):
     # special case: structs where variable size fields are followed by fixed size fields
     self.var_followed_by_fixed_fields = False
 
-    # whether a request or reply has a switch field    
     if self.is_switch:
         self.need_serialize = True
         self.c_container = 'struct'
         for bitcase in self.bitcases:
             bitcase.c_field_name = _cpp(bitcase.field_name)
-            _c_type_setup(bitcase.type, bitcase.field_type, ())
+            bitcase_name = bitcase.field_type if bitcase.type.has_name else name
+            _c_type_setup(bitcase.type, bitcase_name, ())
 
     elif self.is_container:
 
@@ -318,8 +318,6 @@ def _c_type_setup(self, name, postfix):
             if field.type.is_list:
                 _c_type_setup(field.type.member, field.field_type, ())
                 if (field.type.nmemb is None): 
-#                    if field.type.member.need_serialize:
-#                        self.need_serialize = True
                     self.need_sizeof = True
 
             field.c_field_type = _t(field.field_type)
@@ -339,14 +337,12 @@ def _c_type_setup(self, name, postfix):
                 field.c_field_const_type = 'const ' + field.c_field_type
                 self.need_aux = True
             elif not field.type.fixed_size() and not field.type.is_bitcase:
-                #self.need_serialize = True
                 self.need_sizeof = True
 
             field.c_iterator_type = _t(field.field_type + ('iterator',))      # xcb_fieldtype_iterator_t
             field.c_iterator_name = _n(name + (field.field_name, 'iterator')) # xcb_container_field_iterator
             field.c_accessor_name = _n(name + (field.field_name,))            # xcb_container_field
             field.c_length_name = _n(name + (field.field_name, 'length'))     # xcb_container_field_length
-
             field.c_end_name = _n(name + (field.field_name, 'end'))           # xcb_container_field_end
 
             field.prev_varsized_field = prev_varsized_field
@@ -383,43 +379,111 @@ def _c_type_setup(self, name, postfix):
             finished_switch.append(self.c_type)
             # special: switch C structs get pointer fields for variable-sized members
             _c_complex(self)
-            # FIXME: what about accessors & switch (un)packing functions
-            # _c_iterator() does not seem to be the right place to do it, 
-            # as the accessors would need any parameters to pass to _unpack() as well 
+            for bitcase in self.bitcases:
+                bitcase_name = bitcase.type.name if bitcase.type.has_name else name
+                _c_accessors(bitcase.type, bitcase_name, bitcase_name)
+                # no list with switch as element, so no call to 
+                # _c_iterator(field.type, field_name) necessary
 
     if not self.is_bitcase:
         if self.need_serialize:
             if self.c_serialize_name not in finished_serializers:
                 finished_serializers.append(self.c_serialize_name)
-                _c_serialize(self)
-                # _unpack() and _unserialize() are only needed for special cases
+                _c_serialize('serialize', self)
+
+                # _unpack() and _unserialize() are only needed for special cases:
+                #   switch -> unpack
+                #   special cases -> unserialize
                 if self.is_switch or self.var_followed_by_fixed_fields:
-                    _c_unserialize(self)
+                    _c_serialize('unserialize', self)
+                    
         if self.need_sizeof:
             if self.c_sizeof_name not in finished_sizeof:
                 finished_sizeof.append(self.c_sizeof_name)
-                _c_sizeof_helper(self)
+                _c_serialize('sizeof', self)
 # _c_type_setup()
 
-def get_request_fields(self):
-    param_fields = []
-    wire_fields = []
+def _c_helper_absolute_name(prefix, field=None):
+    """
+    turn prefix, which is a list of tuples (name, separator, Type obj) into a string
+    representing a valid name in C (based on the context)
+    if field is not None, append the field name as well
+    """
+    prefix_str = ''
+    for name, sep, obj in prefix:
+        prefix_str += name
+        if '' == sep:
+            sep = '->'
+            if ((obj.is_bitcase and obj.has_name) or     # named bitcase
+                (obj.is_switch and len(obj.parents)>1)):
+                sep = '.'
+        prefix_str += sep
+    if field is not None:
+        prefix_str += _cpp(field.field_name)
+    return prefix_str
+# _c_absolute_name
+    
+def _c_helper_field_mapping(complex_type, prefix, flat=False):
+    """
+    generate absolute names, based on prefix, for all fields starting from complex_type
+    if flat == True, nested complex types are not taken into account
+    """
+    all_fields = {}
+    if complex_type.is_switch:
+        for b in complex_type.bitcases:
+            if b.type.has_name:
+                switch_name, switch_sep, switch_type = prefix[-1]
+                bitcase_prefix = prefix + [(b.type.name[-1], '.', b.type)]
+            else:
+                bitcase_prefix = prefix 
 
-    for field in self.fields:
-        if field.visible:
-            # the field should appear as a parameter in the function call
-            param_fields.append(field)
-        if field.wire and not field.auto:
-            if field.type.fixed_size() and not self.is_switch:
-                # field in the xcb_out structure
-                wire_fields.append(field)
-        # fields like 'pad0' are skipped!
-                    
-    return (param_fields, wire_fields)
-# get_request_fields()
+            if (True==flat and not b.type.has_name) or False==flat:
+                all_fields.update(_c_helper_field_mapping(b.type, bitcase_prefix, flat))
+    else:
+        for f in complex_type.fields:
+            fname = _c_helper_absolute_name(prefix, f)
+            if all_fields.has_key(f.field_name):
+                raise Exception("field name %s has been registered before" % f.field_name)
+
+            all_fields[f.field_name] = (fname, f)
+            if f.type.is_container and flat==False:
+                if f.type.is_bitcase and not f.type.has_name:
+                    new_prefix = prefix
+                elif f.type.is_switch and len(f.type.parents)>1:
+                    # nested switch gets another separator
+                    new_prefix = prefix+[(f.c_field_name, '.', f.type)]
+                else:
+                    new_prefix = prefix+[(f.c_field_name, '->', f.type)]
+                all_fields.update(_c_helper_field_mapping(f.type, new_prefix, flat))
+
+    return all_fields
+# _c_field_mapping()
+
+def _c_helper_resolve_field_names (prefix):
+    """
+    get field names for all objects in the prefix array
+    """
+    all_fields = {}
+    tmp_prefix = []
+    # look for fields in the remaining containers
+    for idx, p in enumerate(prefix):
+        name, sep, obj = p
+        if ''==sep:
+            # sep can be preset in prefix, if not, make a sensible guess
+            sep = '.' if (obj.is_switch or obj.is_bitcase) else '->'
+            # exception: 'toplevel' object (switch as well!) always have sep '->'
+            sep = '->' if idx<1 else sep
+        if not obj.is_bitcase or (obj.is_bitcase and obj.has_name):
+            tmp_prefix.append((name, sep, obj))
+        all_fields.update(_c_helper_field_mapping(obj, tmp_prefix, flat=True))
+
+    return all_fields
+# _c_helper_resolve_field_names
 
 def get_expr_fields(self):
-    # get the fields referenced by switch or list expression
+    """
+    get the Fields referenced by switch or list expression 
+    """
     def get_expr_field_names(expr):
         if expr.op is None:
             if expr.lenfield_name is not None:
@@ -433,7 +497,17 @@ def get_expr_fields(self):
             elif expr.op == 'popcount':
                 return get_expr_field_names(expr.rhs)
             elif expr.op == 'sumof':
-                return [expr.lenfield_name]
+                # sumof expr references another list, 
+                # we need that list's length field here
+                field = None
+                for f in expr.lenfield_parent.fields:
+                    if f.field_name == expr.lenfield_name:
+                        field = f
+                        break
+                if field is None:
+                    raise Exception("list field '%s' referenced by sumof not found" % expr.lenfield_name)
+                # referenced list + its length field
+                return [expr.lenfield_name] + get_expr_field_names(field.type.expr)
             elif expr.op == 'enumref':
                 return []
             else:
@@ -441,83 +515,105 @@ def get_expr_fields(self):
     # get_expr_field_names()
     
     # resolve the field names with the parent structure(s)
-    unresolved_fields = get_expr_field_names(self.expr)
-    if unresolved_fields is None:
-        return []
-    expr_fields = dict.fromkeys(unresolved_fields)
-    for p in reversed(self.parent):
-        parent_fields = dict((f.field_name, f) for f in p.fields)
-        for f in parent_fields.keys():
-            if f in unresolved_fields:
-                expr_fields[f] = parent_fields[f]
-                unresolved_fields.remove(f)
-        if len(unresolved_fields) == 0:
-            break
-                
-    if None in expr_fields.values():
-        raise Exception("could not resolve all fields for %s" % self.name)
+    unresolved_fields_names = get_expr_field_names(self.expr)
 
-    params = expr_fields.values()
-    return params
+    # construct prefix from self
+    prefix = [('', '', p) for p in self.parents]
+    if self.is_container:
+        prefix.append(('', '', self))
+
+    all_fields = _c_helper_resolve_field_names (prefix)
+    resolved_fields_names = filter(lambda x: x in all_fields.keys(), unresolved_fields_names)
+    if len(unresolved_fields_names) != len(resolved_fields_names):
+        raise Exception("could not resolve all fields for %s" % self.name)
+    
+    resolved_fields = [all_fields[n][1] for n in resolved_fields_names]
+    return resolved_fields
 # get_expr_fields()
 
-def resolve_fields(anchestor, complex_obj=None):
-    """find fields referenced by anchestor or descendents with external scope"""
+def resolve_expr_fields(complex_obj):
+    """
+    find expr fields appearing in complex_obj and descendents that cannot be resolved within complex_obj
+    these are normally fields that need to be given as function parameters
+    """
+    all_fields = []
     expr_fields = []
     unresolved = []
-    all_fields = []
-    if complex_obj is None:
-        complex_obj = anchestor
+
     for field in complex_obj.fields:
         all_fields.append(field)
         if field.type.is_switch or field.type.is_list:
             expr_fields += get_expr_fields(field.type)
         if field.type.is_container:
-            expr_fields += resolve_fields(anchestor, field.type)
+            expr_fields += resolve_expr_fields(field.type)
+
     # try to resolve expr fields
     for e in expr_fields:
-        if e not in all_fields:
+        if e not in all_fields and e not in unresolved:
             unresolved.append(e)
     return unresolved
-# resolve_fields()
+# resolve_expr_fields()
             
 def get_serialize_params(context, self, buffer_var='_buffer', aux_var='_aux'):
+    """
+    functions like _serialize(), _unserialize(), and _unpack() sometimes need additional parameters:
+    E.g. in order to unpack switch, extra parameters might be needed to evaluate the switch 
+    expression. This function tries to resolve all fields within a structure, and returns the 
+    unresolved fields as the list of external parameters. 
+    """
     def add_param(params, param):
         if param not in params:
             params.append(param)
 
-    param_fields, wire_fields = get_request_fields(self)
+    # collect all fields into param_fields
+    param_fields = []
+    wire_fields = []
+
+    for field in self.fields:
+        if field.visible:
+            # the field should appear as a parameter in the function call
+            param_fields.append(field)
+        if field.wire and not field.auto:
+            if field.type.fixed_size() and not self.is_switch:
+                # field in the xcb_out structure
+                wire_fields.append(field)
+        # fields like 'pad0' are skipped!
+               
+    # in case of switch, parameters always contain any fields referenced in the switch expr
+    # we do not need any variable size fields here, as the switch data type contains both 
+    # fixed and variable size fields
     if self.is_switch:
         param_fields = get_expr_fields(self)
 
-    # _serialize function parameters
-    # cannot use set() for params, as series is important
+    # _serialize()/_unserialize()/_unpack() function parameters
+    # note: don't use set() for params, it is unsorted
     params = []
+    
+    # 1. the parameter for the void * buffer
     if  'serialize' == context:
         params.append(('void', '**', buffer_var))
     elif context in ('unserialize', 'unpack', 'sizeof'):
         params.append(('const void', '*', buffer_var))
 
-    # look for special cases
-    unresolved_fields = resolve_fields(self)
+    # 2. any expr fields that cannot be resolved within self and descendants
+    unresolved_fields = resolve_expr_fields(self)
     for f in unresolved_fields:
         add_param(params, (f.c_field_type, '', f.c_field_name))
 
-    # make sure all required length fields are present
+    # 3. param_fields contain the fields necessary to evaluate the switch expr or any other fields
+    #    that do not appear in the data type struct
     for p in param_fields:
-        if p.visible and not p.wire and not p.auto:
-            typespec = p.c_field_type
-            pointerspec = ''
-            add_param(params, (typespec, pointerspec, p.c_field_name))
-
-    # parameter fields if any
-    if self.is_switch:
-        for p in get_expr_fields(self):
+        if self.is_switch:
             typespec = p.c_field_const_type
             pointerspec = p.c_pointer 
             add_param(params, (typespec, pointerspec, p.c_field_name))
+        else:
+            if p.visible and not p.wire and not p.auto:
+                typespec = p.c_field_type
+                pointerspec = ''
+                add_param(params, (typespec, pointerspec, p.c_field_name))
   
-    # aux argument - structure to be serialized
+    # 4. aux argument
     if 'serialize' == context:
         add_param(params, ('const %s' % self.c_type, '*', aux_var))
     elif 'unserialize' == context: 
@@ -525,86 +621,40 @@ def get_serialize_params(context, self, buffer_var='_buffer', aux_var='_aux'):
     elif 'unpack' == context:
         add_param(params, ('%s' % self.c_type, '*', aux_var))
 
+    # 5. switch contains all variable size fields as struct members
+    #    for other data types though, these have to be supplied separately
+    #    this is important for the special case of intermixed fixed and 
+    #    variable size fields
     if not self.is_switch and 'serialize' == context:
         for p in param_fields:
             if not p.type.fixed_size():
                 add_param(params, (p.c_field_const_type, '*', p.c_field_name))
+
     return (param_fields, wire_fields, params)
 # get_serialize_params()
 
-def _c_serialize_helper_prefix(prefix, aux_var='_aux', aux_sep='->'):
-    # prefix is a list of (field_name, anchestor object) tuples
-    # concatenate field names
-    prefix_str = ''
-    for name, sep, obj in prefix:
-        prefix_str += name
-        if sep == '':
-            sep = '.' if (obj.is_bitcase and obj.has_name) else '->'
-        prefix_str += sep
-        
-    lenfield_prefix = '' if prefix_str.find(aux_var)==0 else aux_var
-
-    if prefix_str != '':
-        if lenfield_prefix != '':
-            lenfield_prefix += aux_sep
-        lenfield_prefix += prefix_str
-    return (prefix_str, lenfield_prefix)
-# _c_serialize_helper_prefix
-
-def _c_field_mapping(context, complex_type, prefix):
-    def get_prefix(field, prefix):
-        prefix_str, lenfield_prefix = _c_serialize_helper_prefix(prefix)
-        if prefix_str == '':
-            if context in ('serialize', 'unserialize'):
-                if field.type.fixed_size() or complex_type.is_switch:
-                    prefix_str = '_aux->'
-            else:
-                raise Exception("unknown context '%s' in c_field_mapping" % context)
-        return prefix_str
-    # get_prefix()
-    def get_field_name(fields, complex_type, prefix):
-        for f in complex_type.fields:
-            prefix_str = get_prefix(f, prefix)
-
-            fname = "%s%s" % (prefix_str, f.c_field_name)
-            if fields.has_key(f.field_name):
-                raise Exception("field name %s has been registered before" % f.field_name)
-            fields[f.field_name] = (fname, f)
-            if f.type.is_container:
-                get_field_name(fields, f.type, prefix+[(f.c_field_name, '', f.type)])
-    # get_field_name()
-
-    # dict(field_name : (c_field_name, field))
-    fields = {}
-    get_field_name(fields, complex_type, prefix)
-    
-    # switch: get the fields referenced by the switch expr as well
-    #         these may not belong to any structure
-    if complex_type.is_switch:
-        pass
-#       FIXME: fields += get_serialize_params(context, complex_type)
-
-    return fields
-# _c_field_mapping()
-
-def _c_serialize_helper_insert_padding(context, code_lines, space):
-    code_lines.append('%s    xcb_buffer_len += xcb_block_len;' % space)
-    code_lines.append('%s    /* padding */' % space)
+def _c_serialize_helper_insert_padding(context, code_lines, space, postpone):
+    code_lines.append('%s    /* insert padding */' % space)
     code_lines.append('%s    xcb_pad = -xcb_block_len & 3;' % space)
-    code_lines.append('%s    if (0 != xcb_pad) {' % space)
+#    code_lines.append('%s    printf("automatically inserting padding: %%%%d\\n", xcb_pad);' % space)
+    code_lines.append('%s    xcb_buffer_len += xcb_block_len + xcb_pad;' % space)
 
-    if 'serialize' == context:
-        code_lines.append('%s        xcb_parts[xcb_parts_idx].iov_base = xcb_pad0;' % space)
-        code_lines.append('%s        xcb_parts[xcb_parts_idx].iov_len = xcb_pad;' % space)
-        code_lines.append('%s        xcb_parts_idx++;' % space)
-    elif context in ('unserialize', 'unpack', 'sizeof'):
-        code_lines.append('%s        xcb_tmp += xcb_pad;' % space)
+    if not postpone:
+        code_lines.append('%s    if (0 != xcb_pad) {' % space)
 
-    code_lines.append('%s        xcb_buffer_len += xcb_pad;' % space)    
-    code_lines.append('%s        xcb_pad = 0;' % space)
-    code_lines.append('%s    }' % space)
+        if 'serialize' == context:
+            code_lines.append('%s        xcb_parts[xcb_parts_idx].iov_base = xcb_pad0;' % space)
+            code_lines.append('%s        xcb_parts[xcb_parts_idx].iov_len = xcb_pad;' % space)
+            code_lines.append('%s        xcb_parts_idx++;' % space)
+        elif context in ('unserialize', 'unpack', 'sizeof'):
+            code_lines.append('%s        xcb_tmp += xcb_pad;' % space)
+
+        code_lines.append('%s        xcb_pad = 0;' % space)
+        code_lines.append('%s    }' % space)
+        
     code_lines.append('%s    xcb_block_len = 0;' % space)
-    
+
+    # keep tracking of xcb_parts entries for serialize
     return 1
 # _c_serialize_helper_insert_padding()
 
@@ -612,17 +662,17 @@ def _c_serialize_helper_switch(context, self, complex_name,
                                code_lines, temp_vars, 
                                space, prefix):
     count = 0
-    switch_prefix = prefix + [(complex_name, '->', self)]
-    prefix_str, lenfield_prefix = _c_serialize_helper_prefix(switch_prefix)
-    switch_expr = _c_accessor_get_expr(self.expr)
-    
+    switch_expr = _c_accessor_get_expr(self.expr, None)
+
     for b in self.bitcases:            
-        bitcase_expr = _c_accessor_get_expr(b.type.expr, prefix_str)
+        bitcase_expr = _c_accessor_get_expr(b.type.expr, None)
         code_lines.append('    if(%s & %s) {' % (switch_expr, bitcase_expr))
-        code_lines.append('        printf("entering bitcase section for %%%%d...\\n", %s);' % bitcase_expr)
-        b_prefix = switch_prefix
+#        code_lines.append('        printf("switch %s: entering bitcase section %s (mask=%%%%d)...\\n", %s);' % 
+#                          (self.name[-1], b.type.name[-1], bitcase_expr))
+        b_prefix = prefix
         if b.type.has_name:
-            b_prefix = switch_prefix + [(b.c_field_name, '.', b.type)]
+            b_prefix = prefix + [(b.c_field_name, '.', b.type)]
+            
         count += _c_serialize_helper_fields(context, b.type, 
                                             code_lines, temp_vars, 
                                             "%s    " % space, 
@@ -630,28 +680,39 @@ def _c_serialize_helper_switch(context, self, complex_name,
                                             is_bitcase = True)
         code_lines.append('    }')
 
-    if 'serialize' == context:
-        count += _c_serialize_helper_insert_padding(context, code_lines, space)
-    if context in ('unserialize', 'unpack', 'sizeof'):
-        # padding
-        code_lines.append('%s    xcb_pad = -xcb_block_len & 3;' % space)
-        code_lines.append('%s    xcb_buffer_len += xcb_block_len + xcb_pad;' % space)
-    
+#    if 'serialize' == context:
+#        count += _c_serialize_helper_insert_padding(context, code_lines, space, False)
+#    elif context in ('unserialize', 'unpack', 'sizeof'):
+#        # padding
+#        code_lines.append('%s    xcb_pad = -xcb_block_len & 3;' % space)
+#        code_lines.append('%s    xcb_buffer_len += xcb_block_len + xcb_pad;' % space)
+   
     return count
 # _c_serialize_helper_switch
 
 def _c_serialize_helper_switch_field(context, self, field, c_switch_variable, prefix):
+    """
+    handle switch by calling _serialize() or _unpack(), depending on context
+    """
     # switch is handled by this function as a special case
     param_fields, wire_fields, params = get_serialize_params(context, self)
-    args = get_expr_fields(field.type)
-    field_mapping = _c_field_mapping(context, self, prefix)
-    prefix_str, lenfield_prefix = _c_serialize_helper_prefix(prefix)
+    field_mapping = _c_helper_field_mapping(self, prefix)
+    prefix_str = _c_helper_absolute_name(prefix)
 
-    # determine which params to pass to _unserialize() and their prefixes
-    switch_len_fields = resolve_fields(self, field.type)
-    bitcase_unresolved = resolve_fields(self, self)
+    # find the parameters that need to be passed to _serialize()/_unpack():
+    # all switch expr fields must be given as parameters
+    args = get_expr_fields(field.type)
+    # length fields for variable size types in switch, normally only some of need 
+    # need to be passed as parameters
+    switch_len_fields = resolve_expr_fields(field.type)
+
+    # a switch field at this point _must_ be a bitcase field
+    # we require that bitcases are "self-contiguous"
+    bitcase_unresolved = resolve_expr_fields(self)
     if len(bitcase_unresolved) != 0:
         raise Exception('unresolved fields within bitcase is not supported at this point')
+
+    # get the C names for the parameters  
     c_field_names = ''
     for a in switch_len_fields:
         c_field_names += "%s, " % field_mapping[a.c_field_name][0]
@@ -665,6 +726,7 @@ def _c_serialize_helper_switch_field(context, self, field, c_switch_variable, pr
     elif context in ('unserialize', 'unpack'):
         length = "%s(xcb_tmp, %s&%s%s)" % (field.type.c_unpack_name, 
                                            c_field_names, prefix_str, field.c_field_name)
+
     return length
 # _c_serialize_helper_switch_field()
 
@@ -672,34 +734,38 @@ def _c_serialize_helper_list_field(context, self, field,
                                    code_lines, temp_vars, 
                                    space, prefix):
     """
-    helper function for (un)serialize to cope with lists of variable length
+    helper function to cope with lists of variable length
     """
     expr = field.type.expr
-    prefix_str, lenfield_prefix = _c_serialize_helper_prefix(prefix)
+    prefix_str = _c_helper_absolute_name(prefix)
     param_fields, wire_fields, params = get_serialize_params('sizeof', self)
     param_names = [p[2] for p in params]
-
-    # look if the list's lenfield is a struct member or a function argument
-    # special case: if the list has a length field, its name will be returned 
-    # unchanged by calling c_accessor_get_length(expr)
-    if expr.lenfield_name == _c_accessor_get_length(expr):
-        if expr.lenfield_name in param_names:
-            # the length field appears as separate argument in unserialize, 
-            # so no need for a prefix
-            lenfield_prefix = ''
-    sep = '.' if (self.is_bitcase and self.has_name) else '->'
     
-    # special case: unserializing of structs where variable and 
-    # fixed size fields are intermixed
-    if self.var_followed_by_fixed_fields and 'unserialize' == context:
-        if lenfield_prefix == '_aux':
-            lenfield_prefix = 'xcb_out'
-            sep = '.'
-
-    list_length = _c_accessor_get_expr(expr, lenfield_prefix, sep)
+    expr_fields_names = [f.field_name for f in get_expr_fields(field.type)]
+    resolved = filter(lambda x: x in param_names, expr_fields_names)
+    unresolved = filter(lambda x: x not in param_names, expr_fields_names)
     
+    field_mapping = {}
+    for r in resolved:
+        field_mapping[r] = (r, None)
+    
+    if len(unresolved)>0:
+        tmp_prefix = prefix
+        if len(tmp_prefix)==0:
+            raise Exception("found an empty prefix while resolving expr field names for list %s", 
+                            field.c_field_name)        
+        
+        field_mapping.update(_c_helper_resolve_field_names(prefix))
+        resolved += filter(lambda x: x in field_mapping, unresolved)
+        unresolved = filter(lambda x: x not in field_mapping, unresolved)
+        if len(unresolved)>0:
+            raise Exception('could not resolve the length fields required for list %s' % field.c_field_name)
+
+    list_length = _c_accessor_get_expr(expr, field_mapping)
+
     # default: list with fixed size elements
     length = '%s * sizeof(%s)' % (list_length, field.type.member.c_wiretype)
+
     # list with variable-sized elements 
     if not field.type.member.fixed_size():
         length = ''
@@ -710,17 +776,19 @@ def _c_serialize_helper_list_field(context, self, field,
                 temp_vars.append(int_i)
             if xcb_tmp_len not in temp_vars:
                 temp_vars.append(xcb_tmp_len)
+            # loop over all list elements and call sizeof repeatedly
+            # this should be a bit faster than using the iterators
             code_lines.append("%s    for(i=0; i<%s; i++) {" % (space, list_length))
             code_lines.append("%s        xcb_tmp_len = %s(xcb_tmp);" % 
                               (space, field.type.c_sizeof_name))
             code_lines.append("%s        xcb_block_len += xcb_tmp_len;" % space)
             code_lines.append("%s        xcb_tmp += xcb_tmp_len;" % space)
-            code_lines.append("%s    }" % space)                        
+            code_lines.append("%s    }" % space)                  
+      
         elif 'serialize' == context:
             code_lines.append('%s    xcb_parts[xcb_parts_idx].iov_len = 0;' % space)
             code_lines.append('%s    xcb_tmp = (char *) %s%s;' % (space, prefix_str, field.c_field_name))
-            code_lines.append('%s    for(i=0; i<%s; i++) { ' 
-                              % (space, _c_accessor_get_expr(expr, lenfield_prefix, sep)))
+            code_lines.append('%s    for(i=0; i<%s; i++) { ' % (space, list_length))
             code_lines.append('%s        xcb_block_len = %s(xcb_tmp);' % (space, field.type.c_sizeof_name))
             code_lines.append('%s        xcb_parts[xcb_parts_idx].iov_len += xcb_block_len;' % space)
             code_lines.append('%s    }' % space)
@@ -732,54 +800,64 @@ def _c_serialize_helper_list_field(context, self, field,
 def _c_serialize_helper_fields_fixed_size(context, self, field, 
                                           code_lines, temp_vars, 
                                           space, prefix):
+    # keep the C code a bit more readable by giving the field name
     if not self.is_bitcase:
         code_lines.append('%s    /* %s.%s */' % (space, self.c_type, field.c_field_name))
     else:
         scoped_name = [p[2].c_type if idx==0 else p[0] for idx, p in enumerate(prefix)]
         typename = reduce(lambda x,y: "%s.%s" % (x, y), scoped_name)
         code_lines.append('%s    /* %s.%s */' % (space, typename, field.c_field_name))
-    prefix_str, lenfield_prefix = _c_serialize_helper_prefix(prefix)
 
+    abs_field_name = _c_helper_absolute_name(prefix, field)
+    # default for simple cases: call sizeof()
     length = "sizeof(%s)" % field.c_field_type
 
     if context in ('unserialize', 'unpack', 'sizeof'):
-        value = '    %s%s = *(%s *)xcb_tmp;' % (prefix_str, field.c_field_name, field.c_field_type) 
+        # default: simple cast
+        value = '    %s = *(%s *)xcb_tmp;' % (abs_field_name, field.c_field_type) 
+        
+        # padding - we could probably just ignore it
         if field.type.is_pad and field.type.nmemb > 1:
             value = ''
             for i in range(field.type.nmemb):
-                code_lines.append('%s    %s%s[%d] = *(%s *)xcb_tmp;' % 
-                                  (space, prefix_str, field.c_field_name, i, field.c_field_type)) 
+                code_lines.append('%s    %s[%d] = *(%s *)xcb_tmp;' % 
+                                  (space, abs_field_name, i, field.c_field_type)) 
+            # total padding = sizeof(pad0) * nmemb
             length += " * %d" % field.type.nmemb
 
         if field.type.is_list:
+            # no such case in the protocol, cannot be tested and therefore ignored for now
             raise Exception('list with fixed number of elemens unhandled in _unserialize()')
+
     elif 'serialize' == context:
         value = '    xcb_parts[xcb_parts_idx].iov_base = (char *) ' 
 
         if field.type.is_expr:
-            # need to register a temporary variable for the expression
+            # need to register a temporary variable for the expression in case we know its type
             if field.type.c_type is None:
                 raise Exception("type for field '%s' (expression '%s') unkown" % 
                                 (field.field_name, _c_accessor_get_expr(field.type.expr)))
-            temp_vars.append('    %s xcb_expr_%s = %s;' % (field.type.c_type, field.field_name, 
+            
+            temp_vars.append('    %s xcb_expr_%s = %s;' % (field.type.c_type, _cpp(field.field_name), 
                                                            _c_accessor_get_expr(field.type.expr, prefix)))
-            value += "&xcb_expr_%s;" % field.field_name 
+            value += "&xcb_expr_%s;" % _cpp(field.field_name)
 
         elif field.type.is_pad:
             if field.type.nmemb == 1:
                 value += "&xcb_pad;"
             else:
-                # FIXME - possible segmentation fault!!
-                value = '    memset(xcb_parts[xcb_parts_idx].iov_base, 0, %d);' % field.type.nmemb
+                # we could also set it to 0, see definition of xcb_send_request()
+                value = '    xcb_parts[xcb_parts_idx].iov_base = xcb_pad0;'
                 length += "*%d" % field.type.nmemb
 
         else:
             # non-list type with fixed size
             if field.type.nmemb == 1:
-                value += "&%s%s;" % (prefix_str, field.c_field_name)
+                value += "&%s;" % (abs_field_name)
+
             # list with nmemb (fixed size) elements
             else:
-                value += '%s%s;' % (prefix_str, field.c_field_name)
+                value += '%s;' % (abs_field_name)
                 length = '%d' % field.type.nmemb
 
     return (value, length)
@@ -788,38 +866,51 @@ def _c_serialize_helper_fields_fixed_size(context, self, field,
 def _c_serialize_helper_fields_variable_size(context, self, field, 
                                              code_lines, temp_vars, 
                                              space, prefix):
-    prefix_str, lenfield_prefix = _c_serialize_helper_prefix(prefix)
+    prefix_str = _c_helper_absolute_name(prefix)
 
     if context in ('unserialize', 'unpack', 'sizeof'):
         value = ''
         var_field_name = 'xcb_tmp'
+        
+        # special case: intermixed fixed and variable size fields
         if self.var_followed_by_fixed_fields and 'unserialize' == context:
             value = '    %s = xcb_tmp;' % field.c_field_name
             temp_vars.append('    %s *%s;' % (field.type.c_type, field.c_field_name))
+        # special case: switch
         if 'unpack' == context:
             value = '    %s%s = (%s *)xcb_tmp;' % (prefix_str, field.c_field_name, field.c_field_type)
+            
     elif 'serialize' == context:
-        address_of = '&' if (self.is_bitcase and self.has_name) else ''
-        var_field_name = "%s%s%s" % (address_of, prefix_str, field.c_field_name)
+        # variable size fields appear as parameters to _serialize() if the 
+        # 'toplevel' container is not a switch
+        prefix_string = prefix_str if prefix[0][2].is_switch else ''
+        var_field_name = "%s%s" % (prefix_string, field.c_field_name)
         value = '    xcb_parts[xcb_parts_idx].iov_base = (char *) %s;' % var_field_name
+
     length = ''
 
-    prefix_str, lenfield_prefix = _c_serialize_helper_prefix(prefix)
     code_lines.append('%s    /* %s */' % (space, field.c_field_name))
 
     if field.type.is_list:
         if value != '':
+            # in any context, list is already a pointer, so the default assignment is ok
             code_lines.append("%s%s" % (space, value))
             value = ''
         length = _c_serialize_helper_list_field(context, self, field, 
                                                 code_lines, temp_vars, 
                                                 space, prefix)
+        
     elif field.type.is_switch:
         value = ''
         if context == 'serialize':
+            # the _serialize() function allocates the correct amount memory if given a NULL pointer
             value = '    xcb_parts[xcb_parts_idx].iov_base = (char *)0;'
-        length = _c_serialize_helper_switch_field(context, self, field, 'xcb_parts[xcb_parts_idx].iov_base', prefix)
+        length = _c_serialize_helper_switch_field(context, self, field, 
+                                                  'xcb_parts[xcb_parts_idx].iov_base', 
+                                                  prefix)
+        
     else:
+        # in all remaining special cases - call _sizeof()
         length = "%s(%s)" % (field.type.c_sizeof_name, var_field_name)
 
     return (value, length)
@@ -841,14 +932,13 @@ def _c_serialize_helper_fields(context, self,
             if self.is_bitcase or self.var_followed_by_fixed_fields:
                 if prev_field_was_variable and need_padding:
                     # insert padding
-                    _c_serialize_helper_insert_padding(context, code_lines, space)
+#                    count += _c_serialize_helper_insert_padding(context, code_lines, space, 
+#                                                                self.var_followed_by_fixed_fields)
                     prev_field_was_variable = False
+
+                # prefix for fixed size fields
                 fixed_prefix = prefix
-                if self.var_followed_by_fixed_fields and len(prefix)==0:
-                    if 'unserialize' == context:
-                        fixed_prefix = [('xcb_out', '.', self)]
-                    else:
-                        fixed_prefix = [('_aux', '->', self)]
+
                 value, length = _c_serialize_helper_fields_fixed_size(context, self, field, 
                                                                       code_lines, temp_vars, 
                                                                       space, fixed_prefix)
@@ -859,37 +949,50 @@ def _c_serialize_helper_fields(context, self,
         else:
             # switch/bitcase: always calculate padding before and after variable sized fields
             if need_padding or is_bitcase:
-                _c_serialize_helper_insert_padding(context, code_lines, space)
+                count += _c_serialize_helper_insert_padding(context, code_lines, space, 
+                                                            self.var_followed_by_fixed_fields)
 
             value, length = _c_serialize_helper_fields_variable_size(context, self, field, 
                                                                      code_lines, temp_vars, 
                                                                      space, prefix)
-
             prev_field_was_variable = True
-                
+        
         # save (un)serialization C code
         if '' != value:
             code_lines.append('%s%s' % (space, value))    
-        if field.type.fixed_size() and is_bitcase:
-            code_lines.append('%s    xcb_block_len += %s;' % (space, length))
-            if context in ('unserialize', 'unpack', 'sizeof'):
-                code_lines.append('%s    xcb_tmp += %s;' % (space, length))
-        else:
-            # padding
+        
+        if field.type.fixed_size():
+            if is_bitcase or self.var_followed_by_fixed_fields:
+                # keep track of (un)serialized object's size
+                code_lines.append('%s    xcb_block_len += %s;' % (space, length))
+                if context in ('unserialize', 'unpack', 'sizeof'):
+                    code_lines.append('%s    xcb_tmp += %s;' % (space, length))
+        else: 
+            # variable size objects or bitcase:
+            #   value & length might have been inserted earlier for special cases
             if '' != length:
-                code_lines.append('%s    xcb_block_len = %s;' % (space, length))
+                # special case: intermixed fixed and variable size fields
                 if (not field.type.fixed_size() and 
                     self.var_followed_by_fixed_fields and 'unserialize' == context):
                     temp_vars.append('    int %s_len;' % field.c_field_name)
-                    code_lines.append('    %s_len = xcb_block_len;' % field.c_field_name)
-                if context in ('unserialize', 'sizeof', 'unpack'):
-                    code_lines.append('%s    xcb_tmp += xcb_block_len;' % space)
+                    code_lines.append('%s    %s_len = %s;' % (space, field.c_field_name, length))
+                    code_lines.append('%s    xcb_block_len += %s_len;' % (space, field.c_field_name))
+                    code_lines.append('%s    xcb_tmp += %s_len;' % (space, field.c_field_name))
+                else:
+                    code_lines.append('%s    xcb_block_len += %s;' % (space, length))
+                    # increase pointer into the byte stream accordingly
+                    if context in ('unserialize', 'sizeof', 'unpack'):
+                        code_lines.append('%s    xcb_tmp += xcb_block_len;' % space)
+                        
         if 'serialize' == context:
             if '' != length:
-                code_lines.append('%s    xcb_parts[xcb_parts_idx].iov_len = xcb_block_len;' % space)
+                code_lines.append('%s    xcb_parts[xcb_parts_idx].iov_len = %s;' % (space, length))
             code_lines.append('%s    xcb_parts_idx++;' % space)
             count += 1
+
         need_padding = True
+        if self.var_followed_by_fixed_fields:
+            need_padding = False
         
     return count
 # _c_serialize_helper_fields()    
@@ -897,7 +1000,9 @@ def _c_serialize_helper_fields(context, self,
 def _c_serialize_helper(context, complex_type, 
                         code_lines, temp_vars, 
                         space='', prefix=[]):
+    # count tracks the number of fields to serialize
     count = 0
+
     if hasattr(complex_type, 'type'):
         self = complex_type.type
         complex_name = complex_type.name
@@ -920,18 +1025,23 @@ def _c_serialize_helper(context, complex_type,
         if context in ('unserialize', 'unpack', 'sizeof') and not self.var_followed_by_fixed_fields:
             code_lines.append('%s    xcb_block_len += sizeof(%s);' % (space, self.c_type))
             code_lines.append('%s    xcb_tmp += xcb_block_len;' % space)
-            _c_serialize_helper_insert_padding(context, code_lines, space)
-            
+            # probably not needed
+            #_c_serialize_helper_insert_padding(context, code_lines, space, False)
+
         count += _c_serialize_helper_fields(context, self, 
                                             code_lines, temp_vars, 
                                             space, prefix, False)
-        # "final padding"
-        count += _c_serialize_helper_insert_padding(context, code_lines, space)
+    # "final padding"
+    count += _c_serialize_helper_insert_padding(context, code_lines, space, False)
 
     return count    
 # _c_serialize_helper()
 
-def _c_serialize(self):
+def _c_serialize(context, self):
+    """
+    depending on the context variable, generate _serialize(), _unserialize(), _unpack(), or _sizeof() 
+    for the ComplexType variable self
+    """
     _h_setlevel(1)
     _c_setlevel(1)
 
@@ -939,10 +1049,19 @@ def _c_serialize(self):
     # _serialize() returns the buffer size
     _hc('int')
 
+    if self.is_switch and 'unserialize' == context:
+        context = 'unpack'
+
+    cases = { 'serialize'   : self.c_serialize_name, 
+              'unserialize' : self.c_unserialize_name, 
+              'unpack'      : self.c_unpack_name, 
+              'sizeof'      : self.c_sizeof_name }
+    func_name = cases[context]
+            
+    param_fields, wire_fields, params = get_serialize_params(context, self)
     variable_size_fields = 0
     # maximum space required for type definition of function arguments
     maxtypelen = 0
-    param_fields, wire_fields, params = get_serialize_params('serialize', self)
 
     # determine N(variable_fields) 
     for field in param_fields:
@@ -954,37 +1073,78 @@ def _c_serialize(self):
         maxtypelen = max(maxtypelen, len(p[0]) + len(p[1]))    
 
     # write to .c/.h
-    for idx, p in enumerate(params):
-        line = ""
+    indent = ' '*(len(func_name)+2)
+    param_str = []
+    for p in params:
         typespec, pointerspec, field_name = p
-        indent = ' '*(len(self.c_serialize_name)+2)
-        # p==0: function declaration
-        if 0==idx:
-            line = "%s (" % self.c_serialize_name
-            indent = ''
         spacing = ' '*(maxtypelen-len(typespec)-len(pointerspec))
-        line += "%s%s%s  %s%s  /**< */" % (indent, typespec, spacing, pointerspec, field_name)
-        if idx < len(params)-1:
-            _hc("%s," % line)
-        else:
-            _h("%s);" % line)
-            _c("%s)" % line)
-                
+        param_str.append("%s%s%s  %s%s  /**< */" % (indent, typespec, spacing, pointerspec, field_name))
+    # insert function name
+    param_str[0] = "%s (%s" % (func_name, param_str[0].strip())
+    param_str = map(lambda x: "%s," % x, param_str)
+    for s in param_str[:-1]:
+        _hc(s)
+    _h("%s);" % param_str[-1].rstrip(','))
+    _c("%s)" % param_str[-1].rstrip(','))
     _c('{')
-    if not self.is_switch:
-        _c('    %s *xcb_out = *_buffer;', self.c_type)
-        _c('    unsigned int xcb_out_pad = -sizeof(%s) & 3;', self.c_type)
-        _c('    unsigned int xcb_buffer_len = sizeof(%s) + xcb_out_pad;', self.c_type)
-    else:
-        _c('    char *xcb_out = *_buffer;')
+
+    code_lines = []
+    temp_vars = []
+    prefix = []
+
+    if 'serialize' == context:
+        if not self.is_switch and not self.var_followed_by_fixed_fields:
+            _c('    %s *xcb_out = *_buffer;', self.c_type)
+            _c('    unsigned int xcb_out_pad = -sizeof(%s) & 3;', self.c_type)
+            _c('    unsigned int xcb_buffer_len = sizeof(%s) + xcb_out_pad;', self.c_type)
+        else:
+            _c('    char *xcb_out = *_buffer;')
+            _c('    unsigned int xcb_buffer_len = 0;')
+        prefix = [('_aux', '->', self)]
+        aux_ptr = 'xcb_out'
+
+    elif context in ('unserialize', 'unpack'):
+        _c('    char *xcb_tmp = (char *)_buffer;')
+        if not self.is_switch:
+            if not self.var_followed_by_fixed_fields:
+                _c('    const %s *_aux = (%s *)_buffer;', self.c_type, self.c_type)
+                prefix = [('_aux', '->', self)]
+            else:
+                _c('    %s xcb_out;', self.c_type)
+                prefix = [('xcb_out', '.', self)]
+        else:
+            aux_var = '_aux' # default for unpack: single pointer
+            # note: unserialize not generated for switch
+            if 'unserialize' == context:
+                aux_var = '(*_aux)' # unserialize: double pointer (!)
+            prefix = [(aux_var, '->', self)]
+        aux_ptr = '*_aux'
         _c('    unsigned int xcb_buffer_len = 0;')
-    if variable_size_fields > 0:        
-        code_lines = []
-        temp_vars = []
-        count = _c_serialize_helper('serialize', self, 
-                                    code_lines, temp_vars)
-        # update variable size fields 
-        variable_size_fields = count
+        _c('    unsigned int xcb_block_len = 0;')
+        _c('    unsigned int xcb_pad = 0;')
+
+    elif 'sizeof' == context:
+        param_names = [p[2] for p in params]
+        if self.is_switch:
+            # switch: call _unpack()
+            _c('    %s _aux;', self.c_type)
+            _c('    return %s(%s, &_aux);', self.c_unpack_name, reduce(lambda x,y: "%s, %s" % (x, y), param_names))
+            _c('}')
+            return
+        elif self.var_followed_by_fixed_fields:
+            # special case: call _unserialize()
+            _c('    %s *_aux = NULL;', self.c_type)
+            _c('    return %s(%s, &_aux);', self.c_unserialize_name, reduce(lambda x,y: "%s, %s" % (x, y), param_names))
+            _c('}')
+            return
+        else:
+            _c('    char *xcb_tmp = (char *)_buffer;')
+            prefix = [('_aux', '->', self)]
+
+    count = _c_serialize_helper(context, self, code_lines, temp_vars, prefix=prefix)
+    # update variable size fields (only important for context=='serialize'
+    variable_size_fields = count
+    if 'serialize' == context:
         temp_vars.append('    unsigned int xcb_pad = 0;')
         temp_vars.append('    char xcb_pad0[3] = {0, 0, 0};') 
         temp_vars.append('    struct iovec xcb_parts[%d];' % count)
@@ -992,214 +1152,77 @@ def _c_serialize(self):
         temp_vars.append('    unsigned int xcb_block_len = 0;')
         temp_vars.append('    unsigned int i;')
         temp_vars.append('    char *xcb_tmp;')
-        for t in temp_vars:
-            _c(t)
+    elif 'sizeof' == context:
+        # neither switch nor intermixed fixed and variable size fields:
+        # evaluate parameters directly
+        if not (self.is_switch or self.var_followed_by_fixed_fields):
+
+            # look if we have to declare an '_aux' variable at all
+            if len(filter(lambda x: x.find('_aux')!=-1, code_lines))>0: 
+                if not self.var_followed_by_fixed_fields:
+                    _c('    const %s *_aux = (%s *)_buffer;', self.c_type, self.c_type)
+                else:
+                    _c('    %s *_aux = malloc(sizeof(%s));', self.c_type, self.c_type)
+
+            _c('    unsigned int xcb_buffer_len = 0;')
+            _c('    unsigned int xcb_block_len = 0;')
+            _c('    unsigned int xcb_pad = 0;')        
 
     _c('')
-    
-    if variable_size_fields > 0:        
-        for l in code_lines:
-            _c(l)
+    for t in temp_vars:
+        _c(t)
     _c('')
+    for l in code_lines:
+        _c(l)
 
     # variable sized fields have been collected, now
-    # allocate memory and copy everything into a continuous memory area
-    _c('    if (NULL == xcb_out) {')
-    _c('        /* allocate memory  */')
-    _c('        *_buffer = malloc(xcb_buffer_len);')
-    _c('        xcb_out = *_buffer;')
-    _c('    }')
-    _c('')
-
-    # fill in struct members
-    if not self.is_switch:
-        if len(wire_fields)>0:
-            _c('    *xcb_out = *_aux;')
-
-    # copy variable size fields into the buffer
-    if variable_size_fields > 0:
-        # xcb_out padding
-        if not self.is_switch:
-            _c('    xcb_tmp = (char*)++xcb_out;')
-            _c('    xcb_tmp += xcb_out_pad;')
-        else:
-            _c('    xcb_tmp = xcb_out;')
-            
-        # variable sized fields
-        _c('    for(i=0; i<xcb_parts_idx; i++) {')
-        _c('        memcpy(xcb_tmp, xcb_parts[i].iov_base, xcb_parts[i].iov_len);')
-        _c('        xcb_tmp += xcb_parts[i].iov_len;')
+    # allocate memory and copy everything into a continuous memory area 
+    # note: this is not necessary in case of unpack
+    if context in ('serialize', 'unserialize'):
+        _c('')
+        _c('    if (NULL == %s) {', aux_ptr)
+        _c('        /* allocate memory */')
+        _c('        %s = malloc(xcb_buffer_len);', aux_ptr)
+        if 'serialize' == context:
+            _c('        *_buffer = xcb_out;')
         _c('    }')
+        _c('')
+
+        # serialize: handle variable size fields in a loop
+        if 'serialize' == context:
+            if not self.is_switch and not self.var_followed_by_fixed_fields:
+                if len(wire_fields)>0:
+                    _c('    *xcb_out = *_aux;')
+            # copy variable size fields into the buffer
+            if variable_size_fields > 0:
+                # xcb_out padding
+                if not self.is_switch and not self.var_followed_by_fixed_fields:
+                    _c('    xcb_tmp = (char*)++xcb_out;')
+                    _c('    xcb_tmp += xcb_out_pad;')
+                else:
+                    _c('    xcb_tmp = xcb_out;')
+
+                # variable sized fields
+                _c('    for(i=0; i<xcb_parts_idx; i++) {')
+                _c('        if (0 != xcb_parts[i].iov_base && 0 != xcb_parts[i].iov_len)')
+                _c('            memcpy(xcb_tmp, xcb_parts[i].iov_base, xcb_parts[i].iov_len);')
+                _c('        if (0 != xcb_parts[i].iov_len)')
+                _c('            xcb_tmp += xcb_parts[i].iov_len;')
+                _c('    }')
+            
+        # unserialize: assign variable size fields individually
+        if 'unserialize' == context:
+            _c('    *%s = xcb_out;', aux_ptr)
+            _c('    xcb_tmp = (char *)(*_aux+1);')
+            for field in param_fields:
+                if not field.type.fixed_size():
+                    _c('    memcpy(xcb_tmp, %s, %s_len);', field.c_field_name, field.c_field_name)
+                    _c('    xcb_tmp += %s_len;', field.c_field_name)
+ 
     _c('')
     _c('    return xcb_buffer_len;')
     _c('}')
 # _c_serialize()
-
-def _c_unserialize(self):
-    _h_setlevel(1)
-    _c_setlevel(1)
-
-    # _unserialize()
-    _hc('')
-    # _unserialize() returns the buffer size as well
-    _hc('int')
-
-
-    variable_size_fields = 0
-    # maximum space required for type definition of function arguments
-    maxtypelen = 0
-    if self.is_switch:
-        context = 'unpack'
-        func_name = self.c_unpack_name
-    else:
-        context = 'unserialize'
-        func_name = self.c_unserialize_name
-    param_fields, wire_fields, params = get_serialize_params(context, self)
-
-    # determine N(variable_fields) 
-    for field in param_fields:
-        # if self.is_switch, treat all fields as if they are variable sized
-        if not field.type.fixed_size() or self.is_switch:
-            variable_size_fields += 1
-    # determine maxtypelen
-    for p in params:
-        maxtypelen = max(maxtypelen, len(p[0]) + len(p[1]))    
-
-    # write to .c/.h
-    for idx, p in enumerate(params):
-        line = ""
-        typespec, pointerspec, field_name = p
-        indent = ' '*(len(func_name)+2)
-        # p==0: function declaration
-        if 0==idx:
-            line = "%s (" % func_name
-            indent = ''
-        spacing = ' '*(maxtypelen-len(typespec)-len(pointerspec))
-        line += "%s%s%s %s%s  /**< */" % (indent, typespec, spacing, pointerspec, field_name)
-        if idx < len(params)-1:
-            _hc("%s," % line)
-        else:
-            _h("%s);" % line)
-            _c("%s)" % line)
-                
-    _c('{')
-    _c('    char *xcb_tmp = (char *)_buffer;')
-    if not self.is_switch:
-        if not self.var_followed_by_fixed_fields:
-            _c('    const %s *_aux = (%s *)_buffer;', self.c_type, self.c_type)
-        else:
-            _c('    %s xcb_out;', self.c_type)
-    _c('    unsigned int xcb_buffer_len = 0;')
-    _c('    unsigned int xcb_block_len = 0;')
-    _c('    unsigned int xcb_pad = 0;')
-
-    code_lines = []
-    temp_vars = []
-    _c_serialize_helper(context, self, 
-                        code_lines, temp_vars)
-    for t in temp_vars:
-        _c(t)
-    _c('')
-
-    for l in code_lines:
-        _c(l)
-    _c('')
-
-    if 'unserialize' == context:
-        # allocate memory automatically
-        _c('    if (NULL == *_aux) {')
-        _c('        /* allocate memory */')
-        _c('        *_aux = malloc(xcb_buffer_len);')
-        _c('    }')
-        _c('')
-        _c('    **_aux = xcb_out;')
-        _c('    xcb_tmp = (char *)++(*_aux);')
-        for field in param_fields:
-            if not field.type.fixed_size():
-                _c('    memcpy(xcb_tmp, %s, %s_len);', field.c_field_name, field.c_field_name)
-                _c('    xcb_tmp += %s_len;', field.c_field_name)
-        _c('')
-
-    _c('    return xcb_buffer_len;')
-    _c('}')
-# _c_unserialize()
-
-def _c_sizeof_helper(self):
-    _h_setlevel(1)
-    _c_setlevel(1)
-
-    # _unserialize()
-    _hc('')
-    # _unserialize() returns the buffer size as well
-    _hc('int')
-
-    variable_size_fields = 0
-    # maximum space required for type definition of function arguments
-    maxtypelen = 0
-    param_fields, wire_fields, params = get_serialize_params('sizeof', self)
-
-    # determine N(variable_fields) 
-    for field in param_fields:
-        # if self.is_switch, treat all fields as if they are variable sized
-        if not field.type.fixed_size() or self.is_switch:
-            variable_size_fields += 1
-    # determine maxtypelen
-    for p in params:
-        maxtypelen = max(maxtypelen, len(p[0]) + len(p[1]))    
-
-    # write to .c/.h
-    for idx, p in enumerate(params):
-        line = ""
-        typespec, pointerspec, field_name = p
-        indent = ' '*(len(self.c_sizeof_name)+2)
-        # p==0: function declaration
-        if 0==idx:
-            line = "%s (" % self.c_sizeof_name
-            indent = ''
-        spacing = ' '*(maxtypelen-len(typespec)-len(pointerspec))
-        line += "%s%s%s %s%s  /**< */" % (indent, typespec, spacing, pointerspec, field_name)
-        if idx < len(params)-1:
-            _hc("%s," % line)
-        else:
-            _h("%s);" % line)
-            _c("%s)" % line)
-                
-    _c('{')
-
-    param_names = [p[2] for p in params]
-    if self.is_switch:
-        # switch: call _unpack()
-        _c('    %s _aux;', self.c_type)
-        _c('    return %s(%s, &_aux);', self.c_unpack_name, reduce(lambda x,y: "%s, %s" % (x, y), param_names))
-    elif self.var_followed_by_fixed_fields:
-        # special case: call _unserialize()
-        _c('    %s *_aux = NULL;', self.c_type)
-        _c('    return %s(%s, &_aux);', self.c_unserialize_name, reduce(lambda x,y: "%s, %s" % (x, y), param_names))
-    # otherwise: evaluate parameters directly
-    else:
-        code_lines = []
-        temp_vars = []
-        _c_serialize_helper('sizeof', self, 
-                            code_lines, temp_vars)
-        _c('    char *xcb_tmp = (char *)_buffer;')
-        if len(filter(lambda x: x.find('_aux')!=-1, code_lines))>0: 
-            if not self.var_followed_by_fixed_fields:
-                _c('    const %s *_aux = (%s *)_buffer;', self.c_type, self.c_type)
-            else:
-                _c('    %s *_aux = malloc(sizeof(%s));', self.c_type, self.c_type)
-        _c('    unsigned int xcb_buffer_len = 0;')
-        _c('    unsigned int xcb_block_len = 0;')
-        _c('    unsigned int xcb_pad = 0;')
-        for t in temp_vars:
-            _c(t)
-        _c('')
-        
-        for l in code_lines:
-            _c(l)
-        _c('')
-        _c('    return xcb_buffer_len;')
-    _c('}')
-# _c_sizeof_helper()
 
 def _c_iterator_get_end(field, accum):
     '''
@@ -1209,7 +1232,6 @@ def _c_iterator_get_end(field, accum):
     '''
     if field.type.is_container:
         accum = field.c_accessor_name + '(' + accum + ')'
-        # XXX there could be fixed-length fields at the end
         return _c_iterator_get_end(field.type.last_varsized_field, accum)
     if field.type.is_list:
         # XXX we can always use the first way
@@ -1262,11 +1284,17 @@ def _c_iterator(self, name):
 
     if not self.fixed_size():
         _c('    %s *R = i->data;', self.c_type)
+
         if self.is_union:
             # FIXME - how to determine the size of a variable size union??
-            _c('    /* FIXME - determine the size of the union %s */', self.c_type)
+            _c('    /* FIXME - determine the size of the union %s */', self.c_type)            
         else:
-            _c('    xcb_generic_iterator_t child = %s;', _c_iterator_get_end(self.last_varsized_field, 'R'))
+            if self.need_sizeof:
+                _c('    xcb_generic_iterator_t child;')
+                _c('    child.data = (%s *)(((char *)R) + %s(R));', 
+                   self.c_type, self.c_sizeof_name)
+            else:
+                _c('    xcb_generic_iterator_t child = %s;', _c_iterator_get_end(self.last_varsized_field, 'R'))
             _c('    --i->rem;')
             _c('    i->data = (%s *) child.data;', self.c_type)
             _c('    i->index = child.index;')
@@ -1318,68 +1346,68 @@ def _c_iterator(self, name):
     _c('    return ret;')
     _c('}')
 
-def _c_accessor_get_length(expr, prefix='', sep='->'):
+def _c_accessor_get_length(expr, field_mapping=None):
     '''
     Figures out what C code is needed to get a length field.
+    The field_mapping parameter can be used to change the absolute name of a length field. 
     For fields that follow a variable-length field, use the accessor.
     Otherwise, just reference the structure field directly.
     '''
-    prefarrow = '' if prefix == '' else prefix + sep
-    
-    if expr.lenfield != None and expr.lenfield.prev_varsized_field != None:
+
+    lenfield_name = expr.lenfield_name
+    if lenfield_name is not None:
+        if field_mapping is not None:
+            lenfield_name = field_mapping[lenfield_name][0]
+ 
+    if expr.lenfield is not None and expr.lenfield.prev_varsized_field is not None:
         # special case: variable and fixed size fields are intermixed
         # if the lenfield is among the fixed size fields, there is no need
-        # to call a special accessor function!
-        retval = expr.lenfield.c_accessor_name + '(' + prefix + ')'
-        if prefix in ('', '_aux', 'xcb_out'):
-            prefix_str = '' if prefix=='' else '%s' % (prefarrow)
-            retval = '%s%s' % (prefix_str, expr.lenfield_name)
-        return retval
-    elif expr.lenfield_name != None:
-        if prefix.endswith(sep):
-            return prefix + expr.lenfield_name
-        else:
-            return prefarrow + expr.lenfield_name
+        # to call a special accessor function like <expr.lenfield.c_accessor_name + '(' + prefix + ')'>
+        return field_mapping(expr.lenfield_name)
+    elif expr.lenfield_name is not None:
+        return lenfield_name
     else:
         return str(expr.nmemb)
 
-def _c_accessor_get_expr(expr, prefix='', sep='->'):
+def _c_accessor_get_expr(expr, field_mapping):
     '''
     Figures out what C code is needed to get the length of a list field.
+    The field_mapping parameter can be used to change the absolute name of a length field. 
     Recurses for math operations.
     Returns bitcount for value-mask fields.
     Otherwise, uses the value of the length field.
     '''
-    lenexp = _c_accessor_get_length(expr, prefix, sep)
+    lenexp = _c_accessor_get_length(expr, field_mapping)
 
     if expr.op == '~':
-        return '(' + '~' + _c_accessor_get_expr(expr.rhs, prefix, sep) + ')'
+        return '(' + '~' + _c_accessor_get_expr(expr.rhs, field_mapping) + ')'
     elif expr.op == 'popcount':
-        return 'xcb_popcount(' + _c_accessor_get_expr(expr.rhs, prefix, sep) + ')'
+        return 'xcb_popcount(' + _c_accessor_get_expr(expr.rhs, field_mapping) + ')'
     elif expr.op == 'enumref':
         enum_name = expr.lenfield_type.name
         constant_name = expr.lenfield_name
         c_name = _n(enum_name + (constant_name,)).upper()
         return c_name
     elif expr.op == 'sumof':
-        # 1. locate the referenced list object
+        # locate the referenced list object
         list_obj = expr.lenfield_type
         field = None
         for f in expr.lenfield_parent.fields:
             if f.field_name == expr.lenfield_name:
                 field = f
                 break
+
         if field is None:
             raise Exception("list field '%s' referenced by sumof not found" % expr.lenfield_name)
-        if prefix != '' and not prefix.endswith(sep):
-            prefix += sep
-        list_name = "%s%s" % (prefix, field.c_field_name)
-        c_length_func = "%s(%s%s)" % (field.c_length_name, prefix, field.c_field_name)
-        # FIXME - works only for integers this way!!
-        c_length_func = _c_accessor_get_expr(field.type.expr, prefix='', sep='')
+        list_name = field_mapping[field.c_field_name][0]
+        c_length_func = "%s(%s)" % (field.c_length_name, list_name)
+        # note: xcb_sumof() has only been defined for integers
+        c_length_func = _c_accessor_get_expr(field.type.expr, field_mapping)
         return 'xcb_sumof(%s, %s)' % (list_name, c_length_func)
     elif expr.op != None:
-        return '(' + _c_accessor_get_expr(expr.lhs, prefix, sep) + ' ' + expr.op + ' ' + _c_accessor_get_expr(expr.rhs, prefix, sep) + ')'
+        return ('(' + _c_accessor_get_expr(expr.lhs, field_mapping) + 
+                ' ' + expr.op + ' ' + 
+                _c_accessor_get_expr(expr.rhs, field_mapping) + ')')
     elif expr.bitfield:
         return 'xcb_popcount(' + lenexp + ')'
     else:
@@ -1389,21 +1417,30 @@ def _c_accessors_field(self, field):
     '''
     Declares the accessor functions for a non-list field that follows a variable-length field.
     '''
+    c_type = self.c_type
+
+    # special case: switch
+    switch_obj = self if self.is_switch else None
+    if self.is_bitcase:
+        switch_obj = self.parents[-1]
+    if switch_obj is not None:
+        c_type = switch_obj.c_type
+
     if field.type.is_simple:
         _hc('')
         _hc('')
         _hc('/*****************************************************************************')
-        _hc(' **')
+        _hc(' ** ')
         _hc(' ** %s %s', field.c_field_type, field.c_accessor_name)
         _hc(' ** ')
-        _hc(' ** @param const %s *R', self.c_type)
+        _hc(' ** @param const %s *R', c_type)
         _hc(' ** @returns %s', field.c_field_type)
         _hc(' **')
         _hc(' *****************************************************************************/')
         _hc(' ')
         _hc('%s', field.c_field_type)
-        _h('%s (const %s *R  /**< */);', field.c_accessor_name, self.c_type)
-        _c('%s (const %s *R  /**< */)', field.c_accessor_name, self.c_type)
+        _h('%s (const %s *R  /**< */);', field.c_accessor_name, c_type)
+        _c('%s (const %s *R  /**< */)', field.c_accessor_name, c_type)
         _c('{')
         if field.prev_varsized_field is None:
             _c('    return (%s *) (R + 1);', field.c_field_type)
@@ -1419,19 +1456,19 @@ def _c_accessors_field(self, field):
         _hc(' **')
         _hc(' ** %s * %s', field.c_field_type, field.c_accessor_name)
         _hc(' ** ')
-        _hc(' ** @param const %s *R', self.c_type)
+        _hc(' ** @param const %s *R', c_type)
         _hc(' ** @returns %s *', field.c_field_type)
         _hc(' **')
         _hc(' *****************************************************************************/')
         _hc(' ')
-        if field.type.is_switch:
+        if field.type.is_switch and switch_obj is None:
             return_type = 'void *'
         else:
             return_type = '%s *' % field.c_field_type
 
         _hc(return_type)
-        _h('%s (const %s *R  /**< */);', field.c_accessor_name, self.c_type)
-        _c('%s (const %s *R  /**< */)', field.c_accessor_name, self.c_type)
+        _h('%s (const %s *R  /**< */);', field.c_accessor_name, c_type)
+        _c('%s (const %s *R  /**< */)', field.c_accessor_name, c_type)
         _c('{')
         if field.prev_varsized_field is None:
             _c('    return (%s) (R + 1);', return_type)
@@ -1443,6 +1480,7 @@ def _c_accessors_field(self, field):
             _c('    return (%s) ((char *) prev.data + XCB_TYPE_PAD(%s, prev.index) + %d);', 
                return_type, field.first_field_after_varsized.type.c_type, field.prev_varsized_offset)
         _c('}')
+
     
 def _c_accessors_list(self, field):
     '''
@@ -1451,32 +1489,83 @@ def _c_accessors_list(self, field):
     Declares length and get-iterator functions always.
     '''
     list = field.type
+    c_type = self.c_type
+
+    # special case: switch
+    # in case of switch, 2 params have to be supplied to certain accessor functions:
+    #   1. the anchestor object (request or reply)
+    #   2. the (anchestor) switch object
+    # the reason is that switch is either a child of a request/reply or nested in another switch, 
+    # so whenever we need to access a length field, we might need to refer to some anchestor type
+    switch_obj = self if self.is_switch else None
+    if self.is_bitcase:
+        switch_obj = self.parents[-1]
+    if switch_obj is not None:
+        c_type = switch_obj.c_type
+
+    params = []
+    fields = {}
+    parents = self.parents if hasattr(self, 'parents') else [self]
+    # 'R': parents[0] is always the 'toplevel' container type 
+    params.append(('const %s *R' % parents[0].c_type, parents[0]))
+    fields.update(_c_helper_field_mapping(parents[0], [('R', '->', parents[0])], flat=True))
+    # auxiliary object for 'R' parameters
+    R_obj = parents[0]
+
+    if switch_obj is not None:
+        # now look where the fields are defined that are needed to evaluate 
+        # the switch expr, and store the parent objects in accessor_params and
+        # the fields in switch_fields
+
+        # 'S': name for the 'toplevel' switch
+        toplevel_switch = parents[1]
+        params.append(('const %s *S' % toplevel_switch.c_type, toplevel_switch))
+        fields.update(_c_helper_field_mapping(toplevel_switch, [('S', '->', toplevel_switch)], flat=True))
+
+        # initialize prefix for everything "below" S
+        prefix_str = '/* %s */ S' % toplevel_switch.name[-1]
+        prefix = [(prefix_str, '->', toplevel_switch)]
+
+        # look for fields in the remaining containers
+        for p in parents[2:] + [self]:
+            # the separator between parent and child is always '.' here, 
+            # because of nested switch statements
+            if not p.is_bitcase or (p.is_bitcase and p.has_name):
+                prefix.append((p.name[-1], '.', p))
+            fields.update(_c_helper_field_mapping(p, prefix, flat=True))
+
+        # auxiliary object for 'S' parameter
+        S_obj = parents[1]
 
     _h_setlevel(1)
     _c_setlevel(1)
     if list.member.fixed_size():
+        idx = 1 if switch_obj is not None else 0
         _hc('')
         _hc('')
         _hc('/*****************************************************************************')
         _hc(' **')
         _hc(' ** %s * %s', field.c_field_type, field.c_accessor_name)
         _hc(' ** ')
-        _hc(' ** @param const %s *R', self.c_type)
+        _hc(' ** @param %s', params[idx][0])
         _hc(' ** @returns %s *', field.c_field_type)
         _hc(' **')
         _hc(' *****************************************************************************/')
         _hc(' ')
         _hc('%s *', field.c_field_type)
-        _h('%s (const %s *R  /**< */);', field.c_accessor_name, self.c_type)
-        _c('%s (const %s *R  /**< */)', field.c_accessor_name, self.c_type)
-        _c('{')
 
-        if field.prev_varsized_field is None:
+        _h('%s (%s  /**< */);', field.c_accessor_name, params[idx][0])
+        _c('%s (%s  /**< */)', field.c_accessor_name, params[idx][0])
+
+        _c('{')
+        if switch_obj is not None:
+            _c('    return %s;', fields[field.c_field_name][0])
+        elif field.prev_varsized_field is None:
             _c('    return (%s *) (R + 1);', field.c_field_type)
         else:
             _c('    xcb_generic_iterator_t prev = %s;', _c_iterator_get_end(field.prev_varsized_field, 'R'))
-            _c('    return (%s *) ((char *) prev.data + XCB_TYPE_PAD(%s, prev.index) + %d);', field.c_field_type, field.first_field_after_varsized.type.c_type, field.prev_varsized_offset)
-
+            _c('    return (%s *) ((char *) prev.data + XCB_TYPE_PAD(%s, prev.index) + %d);', 
+               field.c_field_type, field.first_field_after_varsized.type.c_type, field.prev_varsized_offset)
         _c('}')
 
     _hc('')
@@ -1485,16 +1574,24 @@ def _c_accessors_list(self, field):
     _hc(' **')
     _hc(' ** int %s', field.c_length_name)
     _hc(' ** ')
-    _hc(' ** @param const %s *R', self.c_type)
+    _hc(' ** @param const %s *R', c_type)
     _hc(' ** @returns int')
     _hc(' **')
     _hc(' *****************************************************************************/')
     _hc(' ')
     _hc('int')
-    _h('%s (const %s *R  /**< */);', field.c_length_name, self.c_type)
-    _c('%s (const %s *R  /**< */)', field.c_length_name, self.c_type)
+    if switch_obj is not None:
+        _hc('%s (const %s *R  /**< */,', field.c_length_name, R_obj.c_type)
+        spacing = ' '*(len(field.c_length_name)+2)
+        _h('%sconst %s *S /**< */);', spacing, S_obj.c_type)
+        _c('%sconst %s *S  /**< */)', spacing, S_obj.c_type)
+        length = _c_accessor_get_expr(field.type.expr, fields)
+    else:
+        _h('%s (const %s *R  /**< */);', field.c_length_name, c_type)
+        _c('%s (const %s *R  /**< */)', field.c_length_name, c_type)
+        length = _c_accessor_get_expr(field.type.expr, fields)
     _c('{')
-    _c('    return %s;', _c_accessor_get_expr(field.type.expr, 'R'))
+    _c('    return %s;', length)
     _c('}')
 
     if field.type.member.is_simple:
@@ -1504,25 +1601,38 @@ def _c_accessors_list(self, field):
         _hc(' **')
         _hc(' ** xcb_generic_iterator_t %s', field.c_end_name)
         _hc(' ** ')
-        _hc(' ** @param const %s *R', self.c_type)
+        _hc(' ** @param const %s *R', c_type)
         _hc(' ** @returns xcb_generic_iterator_t')
         _hc(' **')
         _hc(' *****************************************************************************/')
         _hc(' ')
         _hc('xcb_generic_iterator_t')
-        _h('%s (const %s *R  /**< */);', field.c_end_name, self.c_type)
-        _c('%s (const %s *R  /**< */)', field.c_end_name, self.c_type)
+        if switch_obj is not None:
+            _hc('%s (const %s *R  /**< */,', field.c_end_name, R_obj.c_type)
+            spacing = ' '*(len(field.c_end_name)+2)
+            _h('%sconst %s *S /**< */);', spacing, S_obj.c_type)
+            _c('%sconst %s *S  /**< */)', spacing, S_obj.c_type)
+        else:
+            _h('%s (const %s *R  /**< */);', field.c_end_name, c_type)
+            _c('%s (const %s *R  /**< */)', field.c_end_name, c_type)
         _c('{')
         _c('    xcb_generic_iterator_t i;')
-
-        if field.prev_varsized_field == None:
-            _c('    i.data = ((%s *) (R + 1)) + (%s);', field.type.c_wiretype, _c_accessor_get_expr(field.type.expr, 'R'))
+        
+        param = 'R' if switch_obj is None else 'S'
+        if switch_obj is not None:
+            _c('    i.data = %s + %s;', fields[field.c_field_name][0], 
+               _c_accessor_get_expr(field.type.expr, fields))
+        elif field.prev_varsized_field == None:
+            _c('    i.data = ((%s *) (R + 1)) + (%s);', field.type.c_wiretype, 
+               _c_accessor_get_expr(field.type.expr, fields))
         else:
-            _c('    xcb_generic_iterator_t child = %s;', _c_iterator_get_end(field.prev_varsized_field, 'R'))
-            _c('    i.data = ((%s *) child.data) + (%s);', field.type.c_wiretype, _c_accessor_get_expr(field.type.expr, 'R'))
+            _c('    xcb_generic_iterator_t child = %s;', 
+               _c_iterator_get_end(field.prev_varsized_field, 'R'))
+            _c('    i.data = ((%s *) child.data) + (%s);', field.type.c_wiretype, 
+               _c_accessor_get_expr(field.type.expr, fields))
 
         _c('    i.rem = 0;')
-        _c('    i.index = (char *) i.data - (char *) R;')
+        _c('    i.index = (char *) i.data - (char *) %s;', param)
         _c('    return i;')
         _c('}')
 
@@ -1533,25 +1643,36 @@ def _c_accessors_list(self, field):
         _hc(' **')
         _hc(' ** %s %s', field.c_iterator_type, field.c_iterator_name)
         _hc(' ** ')
-        _hc(' ** @param const %s *R', self.c_type)
+        _hc(' ** @param const %s *R', c_type)
         _hc(' ** @returns %s', field.c_iterator_type)
         _hc(' **')
         _hc(' *****************************************************************************/')
         _hc(' ')
+
         _hc('%s', field.c_iterator_type)
-        _h('%s (const %s *R  /**< */);', field.c_iterator_name, self.c_type)
-        _c('%s (const %s *R  /**< */)', field.c_iterator_name, self.c_type)
+        if switch_obj is not None:
+            _hc('%s (const %s *R  /**< */,', field.c_iterator_name, R_obj.c_type)
+            spacing = ' '*(len(field.c_iterator_name)+2)
+            _h('%sconst %s *S /**< */);', spacing, S_obj.c_type)
+            _c('%sconst %s *S  /**< */)', spacing, S_obj.c_type)
+        else:
+            _h('%s (const %s *R  /**< */);', field.c_iterator_name, c_type)
+            _c('%s (const %s *R  /**< */)', field.c_iterator_name, c_type)
         _c('{')
         _c('    %s i;', field.c_iterator_type)
 
-        if field.prev_varsized_field == None:
+        if switch_obj is not None:
+            _c('    i.data = %s;', fields[field.c_field_name][0])
+            _c('    i.rem = %s;', _c_accessor_get_expr(field.type.expr, fields))
+        elif field.prev_varsized_field == None:
             _c('    i.data = (%s *) (R + 1);', field.c_field_type)
         else:
             _c('    xcb_generic_iterator_t prev = %s;', _c_iterator_get_end(field.prev_varsized_field, 'R'))
-            _c('    i.data = (%s *) ((char *) prev.data + XCB_TYPE_PAD(%s, prev.index));', field.c_field_type, field.c_field_type)
-
-        _c('    i.rem = %s;', _c_accessor_get_expr(field.type.expr, 'R'))
-        _c('    i.index = (char *) i.data - (char *) R;')
+            _c('    i.data = (%s *) ((char *) prev.data + XCB_TYPE_PAD(%s, prev.index));', 
+               field.c_field_type, field.c_field_type)
+        if switch_obj is None:
+            _c('    i.rem = %s;', _c_accessor_get_expr(field.type.expr, fields))
+        _c('    i.index = (char *) i.data - (char *) %s;', 'R' if switch_obj is None else 'S' )
         _c('    return i;')
         _c('}')
 
@@ -1559,9 +1680,12 @@ def _c_accessors(self, name, base):
     '''
     Declares the accessor functions for the fields of a structure.
     '''
-    # no accessors for switch - 
+    # no accessors for switch itself - 
     # switch always needs to be unpacked explicitly
-    if not self.is_switch:
+#    if self.is_switch:
+#        pass
+#    else:
+    if True:
         for field in self.fields:
             if field.type.is_list and not field.type.fixed_size():
                 _c_accessors_list(self, field)
@@ -1605,10 +1729,6 @@ def _c_complex(self):
         if not field.type.fixed_size() and not self.is_switch and not self.is_union:
             varfield = field.c_field_name
             continue
-#        if varfield != None and not field.type.is_pad and field.wire:
-#            errmsg = '%s: warning: variable field %s followed by fixed field %s\n' % (self.c_type, varfield, field.c_field_name)
-#            sys.stderr.write(errmsg)
-#            sys.exit(1)
         if field.wire:
             struct_fields.append(field)
     
@@ -1802,9 +1922,6 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False):
                     # _serialize() keeps track of padding automatically
                     count -= 1
     dimension = count + 2
-    if self.var_followed_by_fixed_fields:
-        # there will be only one call to _serialize() and no need for additional padding
-        dimension -= 1
 
     _c('{')
     _c('    static const xcb_protocol_request_t xcb_req = {')
@@ -1820,6 +1937,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False):
     _c('    %s xcb_out;', self.c_type)
     if self.var_followed_by_fixed_fields:
         _c('    /* in the protocol description, variable size fields are followed by fixed size fields */')
+        _c('    char *xcb_aux = 0;')
         
 
     for idx, f in enumerate(serial_fields):
@@ -1830,13 +1948,14 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False):
         _c('    unsigned int xcb_tmp_len;')
         _c('    char *xcb_tmp;')
     _c('    ')
+    # simple request call tracing
 #    _c('    printf("in function %s\\n");' % func_name)     
  
     # fixed size fields
     for field in wire_fields:
         if field.type.fixed_size():
             if field.type.is_expr:
-                _c('    xcb_out.%s = %s;', field.c_field_name, _c_accessor_get_expr(field.type.expr))
+                _c('    xcb_out.%s = %s;', field.c_field_name, _c_accessor_get_expr(field.type.expr, None))
             elif field.type.is_pad:
                 if field.type.nmemb == 1:
                     _c('    xcb_out.%s = 0;', field.c_field_name)
@@ -1857,8 +1976,8 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False):
     # calls in order to free dyn. all. memory
     free_calls = []
 
+    _c('    ')
     if not self.var_followed_by_fixed_fields:
-        _c('    ')
         _c('    xcb_parts[2].iov_base = (char *) &xcb_out;')
         _c('    xcb_parts[2].iov_len = sizeof(xcb_out);')
         _c('    xcb_parts[3].iov_base = 0;')
@@ -1875,25 +1994,10 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False):
                     if field.type.is_list:
                         if field.type.member.fixed_size():
                             _c('    xcb_parts[%d].iov_len = %s * sizeof(%s);', count, 
-                               _c_accessor_get_expr(field.type.expr), field.type.member.c_wiretype)
+                               _c_accessor_get_expr(field.type.expr, None), 
+                               field.type.member.c_wiretype)
                         else:
-                            expr = field.type.expr
-                            prefix_str, lenfield_prefix = _c_serialize_helper_prefix([('xcb_out', '.', self)], 
-                                                                                     'xcb_out', '.')
-                            param_fields, wire_fields, params = get_serialize_params('sizeof', self)
-                            param_names = [p[2] for p in params]
-                            sep = '.'
-
-                            # look if the list's lenfield is a struct member or a function argument
-                            # special case: if the list has a length field, its name will be returned 
-                            # unchanged by calling c_accessor_get_length(expr)
-                            if expr.lenfield_name == _c_accessor_get_length(expr):
-                                if expr.lenfield_name in param_names:
-                                    # the length field appears as separate argument,
-                                    # so no need for a prefix
-                                    lenfield_prefix = ''
-                            
-                            list_length = _c_accessor_get_expr(expr, lenfield_prefix, sep)
+                            list_length = _c_accessor_get_expr(field.type.expr, None)
     
                             length = ''
                             _c("    xcb_parts[%d].iov_len = 0;" % count)
@@ -1933,12 +2037,16 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False):
 
     # elif self.var_followed_by_fixed_fields:
     else:
+        _c('    xcb_parts[2].iov_base = (char *) &xcb_out;')
+        # request header: opcodes + length
+        _c('    xcb_parts[2].iov_len = 2*sizeof(uint8_t) + sizeof(uint16_t);') 
+        count += 1
         # call _serialize()
-        buffer_var = 'xcb_parts[%d].iov_base' % count
-        serialize_args = get_serialize_args(self, '&%s' % buffer_var, '&xcb_out', 'serialize')
-        _c('    %s = (char *) 0;', buffer_var)
+        buffer_var = '&xcb_aux'
+        serialize_args = get_serialize_args(self, buffer_var, '&xcb_out', 'serialize')
         _c('    xcb_parts[%d].iov_len = %s (%s);', count, self.c_serialize_name, serialize_args)
-        free_calls.append('    free(xcb_parts[%d].iov_base);' % count)
+        _c('    xcb_parts[%d].iov_base = (char *) xcb_aux;', count)
+        free_calls.append('    free(xcb_aux);')
         # no padding necessary - _serialize() keeps track of padding automatically
 
     _c('    ')
