@@ -1293,11 +1293,13 @@ def _c_iterator(self, name):
                 _c('    xcb_generic_iterator_t child;')
                 _c('    child.data = (%s *)(((char *)R) + %s(R));', 
                    self.c_type, self.c_sizeof_name)
+                _c('    i->index = (char *) child.data - (char *) i->data;')
             else:
                 _c('    xcb_generic_iterator_t child = %s;', _c_iterator_get_end(self.last_varsized_field, 'R'))
+                _c('    i->index = child.index;')
             _c('    --i->rem;')
             _c('    i->data = (%s *) child.data;', self.c_type)
-            _c('    i->index = child.index;')
+
     else:
         _c('    --i->rem;')
         _c('    ++i->data;')
@@ -1937,7 +1939,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False):
     _c('    %s xcb_out;', self.c_type)
     if self.var_followed_by_fixed_fields:
         _c('    /* in the protocol description, variable size fields are followed by fixed size fields */')
-        _c('    char *xcb_aux = 0;')
+        _c('    void *xcb_aux = 0;')
         
 
     for idx, f in enumerate(serial_fields):
