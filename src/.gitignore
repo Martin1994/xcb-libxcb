@@ -18,6 +18,7 @@ xf86dri.*
 xfixes.*
 xinerama.*
 xinput.*
+xkb.*
 xprint.*
 xselinux.*
 xtest.*
