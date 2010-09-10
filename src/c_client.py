@@ -1134,8 +1134,7 @@ def _c_serialize(context, self):
             return
         elif self.var_followed_by_fixed_fields:
             # special case: call _unserialize()
-            _c('    %s *_aux = NULL;', self.c_type)
-            _c('    return %s(%s, &_aux);', self.c_unserialize_name, reduce(lambda x,y: "%s, %s" % (x, y), param_names))
+            _c('    return %s(%s, NULL);', self.c_unserialize_name, reduce(lambda x,y: "%s, %s" % (x, y), param_names))
             _c('}')
             return
         else:
@@ -1180,6 +1179,12 @@ def _c_serialize(context, self):
     # allocate memory and copy everything into a continuous memory area 
     # note: this is not necessary in case of unpack
     if context in ('serialize', 'unserialize'):
+        # unserialize: check for sizeof-only invocation
+        if 'unserialize' == context:
+            _c('')
+            _c('    if (NULL == _aux)')
+            _c('        return xcb_buffer_len;')
+
         _c('')
         _c('    if (NULL == %s) {', aux_ptr)
         _c('        /* allocate memory */')
