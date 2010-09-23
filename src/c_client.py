@@ -925,8 +925,9 @@ def _c_serialize_helper_fields(context, self,
     prev_field_was_variable = False
 
     for field in self.fields:
-        if not ((field.wire and not field.auto) or field.visible):
-            continue
+        if not field.visible:
+            if not ((field.wire and not field.auto) or 'unserialize' == context):
+                continue
 
         # switch/bitcase: fixed size fields must be considered explicitly 
         if field.type.fixed_size():
