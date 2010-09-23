@@ -1218,12 +1218,13 @@ def _c_serialize(context, self):
             
         # unserialize: assign variable size fields individually
         if 'unserialize' == context:
-            _c('    *%s = xcb_out;', aux_ptr)
-            _c('    xcb_tmp = (char *)(*_aux+1);')
+            _c('    xcb_tmp = ((char *)*_aux)+xcb_buffer_len;')
+            param_fields.reverse()
             for field in param_fields:
                 if not field.type.fixed_size():
-                    _c('    memcpy(xcb_tmp, %s, %s_len);', field.c_field_name, field.c_field_name)
-                    _c('    xcb_tmp += %s_len;', field.c_field_name)
+                    _c('    xcb_tmp -= %s_len;', field.c_field_name)
+                    _c('    memmove(xcb_tmp, %s, %s_len);', field.c_field_name, field.c_field_name)
+            _c('    *%s = xcb_out;', aux_ptr)
  
     _c('')
     _c('    return xcb_buffer_len;')
