@@ -875,7 +875,7 @@ def _c_serialize_helper_fields_variable_size(context, self, field,
         
         # special case: intermixed fixed and variable size fields
         if self.var_followed_by_fixed_fields and 'unserialize' == context:
-            value = '    %s = xcb_tmp;' % field.c_field_name
+            value = '    %s = (%s *)xcb_tmp;' % (field.c_field_name, field.c_field_type)
             temp_vars.append('    %s *%s;' % (field.type.c_type, field.c_field_name))
         # special case: switch
         if 'unpack' == context:
