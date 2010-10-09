@@ -443,56 +443,18 @@ static void insert_pending_discard(xcb_connection_t *c, pending_reply **prev_nex
 
 static void discard_reply(xcb_connection_t *c, unsigned int request)
 {
-    pending_reply *pend = 0;
+    void *reply;
     pending_reply **prev_pend;
     uint64_t widened_request;
 
-    /* We've read requests past the one we want, so if it has replies we have
-     * them all and they're in the replies map. */
-    if(XCB_SEQUENCE_COMPARE_32(request, <, c->in.request_read))
-    {
-        struct reply_list *head;
-        head = _xcb_map_remove(c->in.replies, request);
-        while (head)
-        {
-            struct reply_list *next = head->next;
-            free(head->reply);
-            free(head);
-            head = next;
-        }
+    /* Free any replies or errors that we've already read. Stop if
+     * xcb_wait_for_reply would block or we've run out of replies. */
+    while(poll_for_reply(c, request, &reply, 0) && reply)
+        free(reply);
+
+    /* If we've proven there are no more responses coming, we're done. */
+    if(XCB_SEQUENCE_COMPARE_32(request, <=, c->in.request_completed))
         return;
-    }
-
-    /* We're currently processing the responses to the request we want, and we
-     * have a reply ready to return. Free it, and mark the pend to free any further
-     * replies. */
-    if(XCB_SEQUENCE_COMPARE_32(request, ==, c->in.request_read) && c->in.current_reply)
-    {
-        struct reply_list *head;
-        head = c->in.current_reply;
-        c->in.current_reply = NULL;
-        c->in.current_reply_tail = &c->in.current_reply;
-        while (head)
-        {
-            struct reply_list *next = head->next;
-            free(head->reply);
-            free(head);
-            head = next;
-        }
-
-        pend = c->in.pending_replies;
-        if(pend &&
-            !(XCB_SEQUENCE_COMPARE(pend->first_request, <=, c->in.request_read) &&
-             (pend->workaround == WORKAROUND_EXTERNAL_SOCKET_OWNER ||
-              XCB_SEQUENCE_COMPARE(c->in.request_read, <=, pend->last_request))))
-            pend = 0;
-        if(pend)
-            pend->flags |= XCB_REQUEST_DISCARD_REPLY;
-        else
-            insert_pending_discard(c, &c->in.pending_replies, c->in.request_read);
-
-        return;
-    }
 
     /* Walk the list of pending requests. Mark the first match for deletion. */
     for(prev_pend = &c->in.pending_replies; *prev_pend; prev_pend = &(*prev_pend)->next)
