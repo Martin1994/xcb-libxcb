@@ -343,6 +343,15 @@ int _xcb_out_send(xcb_connection_t *c, struct iovec *vector, int count)
     return ret;
 }
 
+void _xcb_out_send_sync(xcb_connection_t *c)
+{
+    /* wait for other writing threads to get out of my way. */
+    while(c->out.writing)
+        pthread_cond_wait(&c->out.cond, &c->iolock);
+    get_socket_back(c);
+    send_sync(c);
+}
+
 int _xcb_out_flush_to(xcb_connection_t *c, uint64_t request)
 {
     assert(XCB_SEQUENCE_COMPARE(request, <=, c->out.request));

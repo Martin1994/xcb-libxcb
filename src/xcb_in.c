@@ -356,20 +356,10 @@ static int poll_for_reply(xcb_connection_t *c, unsigned int request, void **repl
     return 1;
 }
 
-/* Public interface */
-
-void *xcb_wait_for_reply(xcb_connection_t *c, unsigned int request, xcb_generic_error_t **e)
+static void *wait_for_reply(xcb_connection_t *c, unsigned int request, xcb_generic_error_t **e)
 {
-    uint64_t widened_request;
     void *ret = 0;
-    if(e)
-        *e = 0;
-    if(c->has_error)
-        return 0;
-
-    pthread_mutex_lock(&c->iolock);
-
-    widened_request = (c->out.request & UINT64_C(0xffffffff00000000)) | request;
+    uint64_t widened_request = (c->out.request & UINT64_C(0xffffffff00000000)) | request;
     if(widened_request > c->out.request)
         widened_request -= UINT64_C(1) << 32;
 
@@ -411,6 +401,21 @@ void *xcb_wait_for_reply(xcb_connection_t *c, unsigned int request, xcb_generic_
     }
 
     _xcb_in_wake_up_next_reader(c);
+    return ret;
+}
+
+/* Public interface */
+
+void *xcb_wait_for_reply(xcb_connection_t *c, unsigned int request, xcb_generic_error_t **e)
+{
+    void *ret;
+    if(e)
+        *e = 0;
+    if(c->has_error)
+        return 0;
+
+    pthread_mutex_lock(&c->iolock);
+    ret = wait_for_reply(c, request, e);
     pthread_mutex_unlock(&c->iolock);
     return ret;
 }
@@ -575,21 +580,20 @@ xcb_generic_event_t *xcb_poll_for_event(xcb_connection_t *c)
 
 xcb_generic_error_t *xcb_request_check(xcb_connection_t *c, xcb_void_cookie_t cookie)
 {
-    /* FIXME: this could hold the lock to avoid syncing unnecessarily, but
-     * that would require factoring the locking out of xcb_get_input_focus,
-     * xcb_get_input_focus_reply, and xcb_wait_for_reply. */
-    xcb_generic_error_t *ret;
+    xcb_generic_error_t *ret = 0;
     void *reply;
     if(c->has_error)
         return 0;
+    pthread_mutex_lock(&c->iolock);
     if(XCB_SEQUENCE_COMPARE_32(cookie.sequence,>=,c->in.request_expected)
        && XCB_SEQUENCE_COMPARE_32(cookie.sequence,>,c->in.request_completed))
     {
-        free(xcb_get_input_focus_reply(c, xcb_get_input_focus(c), &ret));
-        assert(!ret);
+        _xcb_out_send_sync(c);
+        _xcb_out_flush_to(c, c->out.request);
     }
-    reply = xcb_wait_for_reply(c, cookie.sequence, &ret);
+    reply = wait_for_reply(c, cookie.sequence, &ret);
     assert(!reply);
+    pthread_mutex_unlock(&c->iolock);
     return ret;
 }
 
