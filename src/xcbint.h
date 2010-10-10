@@ -54,7 +54,6 @@ enum lazy_reply_tag
 #define XCB_PAD(i) (-(i) & 3)
 
 #define XCB_SEQUENCE_COMPARE(a,op,b)	((int64_t) ((a) - (b)) op 0)
-#define XCB_SEQUENCE_COMPARE_32(a,op,b)	(((int) (a) - (int) (b)) op 0)
 
 #ifndef offsetof
 #define offsetof(type,member) ((size_t) &((type *)0)->member)
