@@ -15,6 +15,7 @@ AM_CONDITIONAL(HAVE_CHECK, test x$HAVE_CHECK = xyes)
 
 AC_CONFIG_HEADERS([src/config.h])
 
+AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 AC_PROG_CC
 
@@ -72,11 +73,20 @@ AC_HEADER_STDC
 AC_SEARCH_LIBS(getaddrinfo, socket)
 AC_SEARCH_LIBS(connect, socket)
 
+have_win32="no"
+lt_enable_auto_import=""
 case $host_os in
+mingw*)
+	have_win32="yes"
+	lt_enable_auto_import="-Wl,--enable-auto-import"
+ 	;;
 linux*)
 	AC_DEFINE([HAVE_ABSTRACT_SOCKETS], 1, [Define if your platform supports abstract sockets])
 	;;
 esac
+
+AC_SUBST(lt_enable_auto_import)
+AM_CONDITIONAL([XCB_HAVE_WIN32], [test "x${have_win32}" = "xyes"])
 
 dnl define buffer queue size
 AC_ARG_WITH([queue-size],
@@ -121,8 +131,23 @@ AC_PREREQ([2.59c], [], [AC_SUBST([htmldir], [m4_ifset([AC_PACKAGE_TARNAME],
 XCB_CHECK_DOXYGEN()
 
 case $host_os in
-	# darwin has poll() but can't be used to poll character devices (atleast through SnowLeopard)
-	darwin*) ;;
+	# darwin through Snow Leopard has poll() but can't be used to poll character devices.
+	darwin@<:@789@:>@*|darwin10*) ;;
+	darwin*)
+		_ac_xorg_macosx_version_min=""
+		if echo $CPPFLAGS $CFLAGS | grep -q mmacosx-version-min ; then
+			_ac_xorg_macosx_version_min=`echo $CPPFLAGS $CFLAGS | sed 's/^.*-mmacosx-version-min=\(@<:@^ @:>@*\).*$/\1/'`
+		else
+			_ac_xorg_macosx_version_min=$MACOSX_DEPLOYMENT_TARGET
+		fi
+		case $_ac_xorg_macosx_version_min in
+			10.@<:@0123456@:>@|10.@<:@0123456@:>@.*) ;;
+			*)
+				AC_CHECK_FUNC(poll, [AC_DEFINE(USE_POLL, 1, [poll() function is available])], )
+			;;
+		esac
+		unset _ac_xorg_macosx_version_min
+		;;
 	*)
 		AC_CHECK_FUNC(poll, [AC_DEFINE(USE_POLL, 1, [poll() function is available])], )
 	;;
@@ -146,6 +171,7 @@ XCB_EXTENSION(XFixes, "yes")
 XCB_EXTENSION(XFree86-DRI, "yes")
 XCB_EXTENSION(Xinerama, "yes")
 XCB_EXTENSION(XInput, "no")
+XCB_EXTENSION(XKB, "no")
 XCB_EXTENSION(Xprint, "yes")
 XCB_EXTENSION(SELinux, "no")
 XCB_EXTENSION(XTest, "yes")
@@ -189,6 +215,7 @@ xcb-xf86dri.pc
 xcb-xfixes.pc
 xcb-xinerama.pc
 xcb-xinput.pc
+xcb-xkb.pc
 xcb-xprint.pc
 xcb-xselinux.pc
 xcb-xtest.pc
