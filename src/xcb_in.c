@@ -356,6 +356,26 @@ static int poll_for_reply(xcb_connection_t *c, uint64_t request, void **reply, x
     return 1;
 }
 
+static void insert_reader(reader_list **prev_reader, reader_list *reader, uint64_t request, pthread_cond_t *cond)
+{
+    while(*prev_reader && XCB_SEQUENCE_COMPARE((*prev_reader)->request, <=, request))
+        prev_reader = &(*prev_reader)->next;
+    reader->request = request;
+    reader->data = cond;
+    reader->next = *prev_reader;
+    *prev_reader = reader;
+}
+
+static void remove_reader(reader_list **prev_reader, reader_list *reader)
+{
+    while(*prev_reader && XCB_SEQUENCE_COMPARE((*prev_reader)->request, <=, reader->request))
+        if(*prev_reader == reader)
+        {
+            *prev_reader = (*prev_reader)->next;
+            break;
+        }
+}
+
 static void *wait_for_reply(xcb_connection_t *c, uint64_t request, xcb_generic_error_t **e)
 {
     void *ret = 0;
@@ -365,35 +385,14 @@ static void *wait_for_reply(xcb_connection_t *c, uint64_t request, xcb_generic_e
     {
         pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
         reader_list reader;
-        reader_list **prev_reader;
 
-        for(prev_reader = &c->in.readers; 
-	    *prev_reader && 
-	    XCB_SEQUENCE_COMPARE((*prev_reader)->request, <=, request);
-	    prev_reader = &(*prev_reader)->next)
-	{
-            /* empty */;
-	}
-        reader.request = request;
-        reader.data = &cond;
-        reader.next = *prev_reader;
-        *prev_reader = &reader;
+        insert_reader(&c->in.readers, &reader, request, &cond);
 
         while(!poll_for_reply(c, request, &ret, e))
             if(!_xcb_conn_wait(c, &cond, 0, 0))
                 break;
 
-        for(prev_reader = &c->in.readers;
-	    *prev_reader && 
-	    XCB_SEQUENCE_COMPARE((*prev_reader)->request, <=, request);
-	    prev_reader = &(*prev_reader)->next)
-	{
-            if(*prev_reader == &reader)
-            {
-                *prev_reader = (*prev_reader)->next;
-                break;
-            }
-	}
+        remove_reader(&c->in.readers, &reader);
         pthread_cond_destroy(&cond);
     }
 
