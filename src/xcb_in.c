@@ -80,6 +80,17 @@ typedef struct reader_list {
     struct reader_list *next;
 } reader_list;
 
+static void remove_finished_readers(reader_list **prev_reader, uint64_t completed)
+{
+    while(*prev_reader && XCB_SEQUENCE_COMPARE((*prev_reader)->request, <=, completed))
+    {
+        /* If you don't have what you're looking for now, you never
+         * will. Wake up and leave me alone. */
+        pthread_cond_signal((*prev_reader)->data);
+        *prev_reader = (*prev_reader)->next;
+    }
+}
+
 static int read_packet(xcb_connection_t *c)
 {
     xcb_generic_reply_t genrep;
@@ -130,6 +141,8 @@ static int read_packet(xcb_connection_t *c)
 
         if(genrep.response_type == XCB_ERROR)
             c->in.request_completed = c->in.request_read;
+
+        remove_finished_readers(&c->in.readers, c->in.request_completed);
     }
 
     if(genrep.response_type == XCB_ERROR || genrep.response_type == XCB_REPLY)
@@ -194,7 +207,6 @@ static int read_packet(xcb_connection_t *c)
     if( genrep.response_type == XCB_REPLY ||
        (genrep.response_type == XCB_ERROR && pend && (pend->flags & XCB_REQUEST_CHECKED)))
     {
-        reader_list *reader;
         struct reply_list *cur = malloc(sizeof(struct reply_list));
         if(!cur)
         {
@@ -206,17 +218,8 @@ static int read_packet(xcb_connection_t *c)
         cur->next = 0;
         *c->in.current_reply_tail = cur;
         c->in.current_reply_tail = &cur->next;
-        for(reader = c->in.readers; 
-	    reader && 
-	    XCB_SEQUENCE_COMPARE(reader->request, <=, c->in.request_read);
-	    reader = reader->next)
-	{
-            pthread_cond_signal(reader->data);
-            if(reader->request == c->in.request_read)
-            {
-                break;
-            }
-	}
+        if(c->in.readers && c->in.readers->request == c->in.request_read)
+            pthread_cond_signal(c->in.readers->data);
         return 1;
     }
 
