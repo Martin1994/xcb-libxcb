@@ -535,7 +535,7 @@ xcb_generic_event_t *xcb_wait_for_event(xcb_connection_t *c)
     return ret;
 }
 
-xcb_generic_event_t *xcb_poll_for_event(xcb_connection_t *c)
+static xcb_generic_event_t *poll_for_next_event(xcb_connection_t *c, int queued)
 {
     xcb_generic_event_t *ret = 0;
     if(!c->has_error)
@@ -543,11 +543,21 @@ xcb_generic_event_t *xcb_poll_for_event(xcb_connection_t *c)
         pthread_mutex_lock(&c->iolock);
         /* FIXME: follow X meets Z architecture changes. */
         ret = get_event(c);
-        if(!ret && _xcb_in_read(c)) /* _xcb_in_read shuts down the connection on error */
+        if(!ret && !queued && _xcb_in_read(c)) /* _xcb_in_read shuts down the connection on error */
             ret = get_event(c);
         pthread_mutex_unlock(&c->iolock);
     }
     return ret;
+}
+
+xcb_generic_event_t *xcb_poll_for_event(xcb_connection_t *c)
+{
+    return poll_for_next_event(c, 0);
+}
+
+xcb_generic_event_t *xcb_poll_for_queued_event(xcb_connection_t *c)
+{
+    return poll_for_next_event(c, 1);
 }
 
 static xcb_generic_event_t *get_event_until(xcb_connection_t *c, uint64_t request)

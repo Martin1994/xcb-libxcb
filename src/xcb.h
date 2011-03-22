@@ -272,6 +272,22 @@ xcb_generic_event_t *xcb_wait_for_event(xcb_connection_t *c);
 xcb_generic_event_t *xcb_poll_for_event(xcb_connection_t *c);
 
 /**
+ * @brief Returns the next event without reading from the connection.
+ * @param c: The connection to the X server.
+ * @return The next already queued event from the server.
+ *
+ * This is a version of xcb_poll_for_event that only examines the
+ * event queue for new events. The function doesn't try to read new
+ * events from the connection if no queued events are found.
+ *
+ * This function is useful for callers that know in advance that all
+ * interesting events have already been read from the connection. For
+ * example, callers might use xcb_wait_for_reply and be interested
+ * only of events that preceded a specific reply.
+ */
+xcb_generic_event_t *xcb_poll_for_queued_event(xcb_connection_t *c);
+
+/**
  * @brief Returns the next event or error that precedes the given request.
  * @param c: The connection to the X server.
  * @param request: The limiting sequence number.
