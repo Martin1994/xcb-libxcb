@@ -178,15 +178,13 @@ static int _xcb_open(const char *host, char *protocol, const int display)
     }
 #endif
 
-    if(*host || protocol)
+    /* If protocol or host is "unix", fall through to Unix socket code below */
+    if ((!protocol || (strcmp("unix",protocol) != 0)) &&
+        (*host != '\0') && (strcmp("unix",host) != 0))
     {
-        if (protocol
-            || strcmp("unix",host)) { /* follow the old unix: rule */
-
-            /* display specifies TCP */
-            unsigned short port = X_TCP_PORT + display;
-            return _xcb_open_tcp(host, protocol, port);
-        }
+        /* display specifies TCP */
+        unsigned short port = X_TCP_PORT + display;
+        return _xcb_open_tcp(host, protocol, port);
     }
 
 #ifndef _WIN32
