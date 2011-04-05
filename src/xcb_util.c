@@ -171,11 +171,11 @@ static int _xcb_open(const char *host, char *protocol, const int display)
     int actual_filelen;
 
 #ifdef HAVE_LAUNCHD
-        if(strncmp(host, "/tmp/launch", 11) == 0) {
-		base = host;
-		host = "";
-		protocol = NULL;
-        }
+    if(strncmp(host, "/tmp/launch", 11) == 0) {
+        base = host;
+        host = "";
+        protocol = NULL;
+    }
 #endif
 
     if(*host || protocol)
