@@ -57,7 +57,6 @@
 #endif
 
 struct event_list {
-    uint64_t sequence;
     xcb_generic_event_t *event;
     struct event_list *next;
 };
@@ -126,7 +125,7 @@ static int read_packet(xcb_connection_t *c)
                 c->in.current_reply = 0;
                 c->in.current_reply_tail = &c->in.current_reply;
             }
-            c->in.request_completed = c->in.event_responses_completed = c->in.request_read - 1;
+            c->in.request_completed = c->in.request_read - 1;
         }
 
         while(c->in.pending_replies && 
@@ -141,12 +140,9 @@ static int read_packet(xcb_connection_t *c)
         }
 
         if(genrep.response_type == XCB_ERROR)
-            c->in.request_completed = c->in.event_responses_completed = c->in.request_read;
-        else if(genrep.response_type == XCB_REPLY)
-            c->in.event_responses_completed = c->in.request_read;
+            c->in.request_completed = c->in.request_read;
 
         remove_finished_readers(&c->in.readers, c->in.request_completed);
-        remove_finished_readers(&c->in.event_readers, c->in.event_responses_completed);
     }
 
     if(genrep.response_type == XCB_ERROR || genrep.response_type == XCB_REPLY)
@@ -235,15 +231,11 @@ static int read_packet(xcb_connection_t *c)
         free(buf);
         return 0;
     }
-    event->sequence = c->in.request_read;
     event->event = buf;
     event->next = 0;
     *c->in.events_tail = event;
     c->in.events_tail = &event->next;
-    if(c->in.event_readers)
-        pthread_cond_signal(c->in.event_readers->data);
-    else
-        pthread_cond_signal(&c->in.event_cond);
+    pthread_cond_signal(&c->in.event_cond);
     return 1; /* I have something for you... */
 }
 
@@ -560,35 +552,6 @@ xcb_generic_event_t *xcb_poll_for_queued_event(xcb_connection_t *c)
     return poll_for_next_event(c, 1);
 }
 
-static xcb_generic_event_t *get_event_until(xcb_connection_t *c, uint64_t request)
-{
-    if(c->in.events && XCB_SEQUENCE_COMPARE(c->in.events->sequence, <=, request))
-        return get_event(c);
-    return 0;
-}
-
-xcb_generic_event_t *xcb_wait_for_event_until(xcb_connection_t *c, unsigned int request)
-{
-    pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-    reader_list reader;
-    xcb_generic_event_t *ret;
-    if(c->has_error)
-        return 0;
-    pthread_mutex_lock(&c->iolock);
-
-    insert_reader(&c->in.event_readers, &reader, widen(c, request), &cond);
-
-    while(!(ret = get_event_until(c, reader.request)) && XCB_SEQUENCE_COMPARE(c->in.event_responses_completed, <, reader.request))
-        if(!_xcb_conn_wait(c, &cond, 0, 0))
-            break;
-
-    remove_reader(&c->in.event_readers, &reader);
-    pthread_cond_destroy(&cond);
-    _xcb_in_wake_up_next_reader(c);
-    pthread_mutex_unlock(&c->iolock);
-    return ret;
-}
-
 xcb_generic_error_t *xcb_request_check(xcb_connection_t *c, xcb_void_cookie_t cookie)
 {
     uint64_t request;
@@ -659,8 +622,6 @@ void _xcb_in_wake_up_next_reader(xcb_connection_t *c)
     int pthreadret;
     if(c->in.readers)
         pthreadret = pthread_cond_signal(c->in.readers->data);
-    else if(c->in.event_readers)
-        pthreadret = pthread_cond_signal(c->in.event_readers->data);
     else
         pthreadret = pthread_cond_signal(&c->in.event_cond);
     assert(pthreadret == 0);
