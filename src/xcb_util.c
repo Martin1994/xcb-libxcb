@@ -277,9 +277,6 @@ static int _xcb_open_tcp(const char *host, char *protocol, const unsigned short 
 	host = "localhost";
 
     memset(&hints, 0, sizeof(hints));
-#ifdef AI_ADDRCONFIG
-    hints.ai_flags |= AI_ADDRCONFIG;
-#endif
 #ifdef AI_NUMERICSERV
     hints.ai_flags |= AI_NUMERICSERV;
 #endif
