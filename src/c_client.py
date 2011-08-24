@@ -175,6 +175,9 @@ def c_open(self):
     _c('#include "xcbext.h"')
     _c('#include "%s.h"', _ns.header)
         
+    _c('')
+    _c('#define ALIGNOF(type) offsetof(struct { char dummy; type member; }, member)')
+
     if _ns.is_ext:
         for (n, h) in self.imports:
             _hc('#include "%s.h"', h)
@@ -183,9 +186,6 @@ def c_open(self):
     _h('#ifdef __cplusplus')
     _h('extern "C" {')
     _h('#endif')
-
-    _h('')
-    _h('#define ALIGNOF(type) offsetof(struct { char dummy; type member; }, member)')
 
     if _ns.is_ext:
         _h('')
