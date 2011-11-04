@@ -173,7 +173,7 @@ unsigned int xcb_send_request(xcb_connection_t *c, int flags, struct iovec *vect
             const xcb_query_extension_reply_t *extension = xcb_get_extension_data(c, req->ext);
             if(!(extension && extension->present))
             {
-                _xcb_conn_shutdown(c);
+                _xcb_conn_shutdown(c, XCB_CONN_CLOSED_EXT_NOTSUPPORTED);
                 return 0;
             }
             ((uint8_t *) vector[0].iov_base)[0] = extension->major_opcode;
@@ -203,7 +203,7 @@ unsigned int xcb_send_request(xcb_connection_t *c, int flags, struct iovec *vect
         }
         else if(longlen > xcb_get_maximum_request_length(c))
         {
-            _xcb_conn_shutdown(c);
+            _xcb_conn_shutdown(c, XCB_CONN_CLOSED_REQ_LEN_EXCEED);
             return 0; /* server can't take this; maybe need BIGREQUESTS? */
         }
 
