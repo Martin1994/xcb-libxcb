@@ -225,8 +225,12 @@ endif
 nodist_xcbinclude_HEADERS = $(EXTHEADERS)
 noinst_HEADERS = xcbint.h
 
-BUILT_SOURCES = $(EXTSOURCES)
-CLEANFILES = $(EXTSOURCES) $(EXTHEADERS)
+BUILT_SOURCES = $(EXTSOURCES) $(man_MANS)
+CLEANFILES = $(EXTSOURCES) $(EXTHEADERS) $(man_MANS)
+
+include $(srcdir)/list_of_manpages.inc
 
 $(EXTSOURCES): c_client.py
 	$(PYTHON) $(srcdir)/c_client.py -p $(XCBPROTO_XCBPYTHONDIR) $(XCBPROTO_XCBINCLUDEDIR)/$(@:.c=.xml)
+
+$(man_MANS): $(EXTSOURCES)
