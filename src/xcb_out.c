@@ -263,7 +263,13 @@ int xcb_take_socket(xcb_connection_t *c, void (*return_socket)(void *closure), v
         return 0;
     pthread_mutex_lock(&c->iolock);
     get_socket_back(c);
-    ret = _xcb_out_flush_to(c, c->out.request);
+
+    /* _xcb_out_flush may drop the iolock allowing other threads to
+     * write requests, so keep flushing until we're done
+     */
+    do
+	    ret = _xcb_out_flush_to(c, c->out.request);
+    while (ret && c->out.request != c->out.request_written);
     if(ret)
     {
         c->out.return_socket = return_socket;
