@@ -34,11 +34,11 @@
 #include <stddef.h>
 #include <unistd.h>
 #include <string.h>
-#include <arpa/inet.h>
 
 #ifdef _WIN32
 #include "xcb_windefs.h"
 #else
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
