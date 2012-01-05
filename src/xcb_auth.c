@@ -36,6 +36,10 @@
 #include <rpc/types.h>
 #endif
 
+#ifdef HASXDMAUTH
+#include <X11/Xdmcp.h>
+#endif
+
 #ifdef _WIN32
 #include "xcb_windefs.h"
 #else
@@ -48,9 +52,6 @@
 #include "xcb.h"
 #include "xcbint.h"
 
-#ifdef HASXDMAUTH
-#include <X11/Xdmcp.h>
-#endif
 
 enum auth_protos {
 #ifdef HASXDMAUTH
