@@ -315,6 +315,10 @@ void xcb_disconnect(xcb_connection_t *c)
     _xcb_xid_destroy(c);
 
     free(c);
+
+#ifdef _WIN32
+    WSACleanup();
+#endif
 }
 
 /* Private interface */
