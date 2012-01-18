@@ -25,6 +25,10 @@
 
 /* Authorization systems for the X protocol. */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <assert.h>
 #include <X11/Xauth.h>
 #include <sys/param.h>
@@ -37,6 +41,11 @@
 #endif
 
 #ifdef _WIN32
+#ifdef HASXDMAUTH
+/* We must include the wrapped windows.h before any system header which includes
+   it unwrapped, to avoid conflicts with types defined in X headers */
+#include <X11/Xwindows.h>
+#endif
 #include "xcb_windefs.h"
 #else
 #include <arpa/inet.h>
