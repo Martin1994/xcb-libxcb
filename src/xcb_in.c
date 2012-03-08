@@ -269,7 +269,11 @@ static int read_block(const int fd, void *buf, const ssize_t len)
     int done = 0;
     while(done < len)
     {
+#ifdef __APPLE__
+        int ret = read(fd, ((char *) buf) + done, len - done);
+#else
         int ret = recv(fd, ((char *) buf) + done, len - done,MSG_WAITALL);
+#endif
         if(ret > 0)
             done += ret;
 #ifndef _WIN32
@@ -661,7 +665,11 @@ void _xcb_in_replies_done(xcb_connection_t *c)
 
 int _xcb_in_read(xcb_connection_t *c)
 {
+#ifdef __APPLE__
+    int n = read(c->fd, c->in.queue + c->in.queue_len, sizeof(c->in.queue) - c->in.queue_len);
+#else
     int n = recv(c->fd, c->in.queue + c->in.queue_len, sizeof(c->in.queue) - c->in.queue_len,MSG_WAITALL);
+#endif
     if(n > 0)
         c->in.queue_len += n;
     while(read_packet(c))
