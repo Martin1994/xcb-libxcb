@@ -271,7 +271,7 @@ def c_enum(self, name):
         equals = ' = ' if eval != '' else ''
         comma = ',' if count > 0 else ''
         doc = ''
-        if self.doc and enam in self.doc.fields:
+        if hasattr(self, "doc") and self.doc and enam in self.doc.fields:
             doc = '\n/**< %s */\n' % self.doc.fields[enam]
         _h('    %s%s%s%s%s', _n(name + (enam,)).upper(), equals, eval, comma, doc)
 
@@ -1890,7 +1890,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False):
     _c_setlevel(1)
     _h('')
     _h('/**')
-    if self.doc:
+    if hasattr(self, "doc") and self.doc:
         if self.doc.brief:
             _h(' * @brief ' + self.doc.brief)
         else:
@@ -1899,7 +1899,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False):
     _h(' *')
     _h(' * @param c The connection')
     param_names = [f.c_field_name for f in param_fields]
-    if self.doc:
+    if hasattr(self, "doc") and self.doc:
         for field in param_fields:
             # XXX: hard-coded until we fix xproto.xml
             base_func_name = self.c_request_name if not aux else self.c_aux_name
@@ -1931,7 +1931,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False):
     _h(' * @return A cookie')
     _h(' *')
 
-    if self.doc:
+    if hasattr(self, "doc") and self.doc:
         if self.doc.description:
             desc = self.doc.description
             for name in param_names:
@@ -2281,7 +2281,7 @@ def _man_request(self, name, cookie_type, void, aux):
     # Left-adjust instead of adjusting to both sides
     f.write('.ad l\n')
     f.write('.SH NAME\n')
-    brief = self.doc.brief if self.doc else ''
+    brief = self.doc.brief if hasattr(self, "doc") and self.doc else ''
     f.write('%s \\- %s\n' % (func_name, brief))
     f.write('.SH SYNOPSIS\n')
     # Don't split words (hyphenate)
@@ -2500,7 +2500,7 @@ def _man_request(self, name, cookie_type, void, aux):
             field.enum = 'CW'
         elif base_func_name == 'xcb_create_window' and field.c_field_name == 'value_mask':
             field.enum = 'CW'
-        if field.enum:
+        if hasattr(field, "enum") and field.enum:
             # XXX: why the 'xcb' prefix?
             key = ('xcb', field.enum)
             if key in enums:
@@ -2511,7 +2511,7 @@ def _man_request(self, name, cookie_type, void, aux):
                 for (enam, eval) in enum.values:
                     count = count - 1
                     f.write('.IP \\fI%s\\fP 1i\n' % (_n(key + (enam,)).upper()))
-                    if enum.doc and enam in enum.doc.fields:
+                    if hasattr(enum, "doc") and enum.doc and enam in enum.doc.fields:
                         desc = re.sub(r'`([^`]+)`', r'\\fI\1\\fP', enum.doc.fields[enam])
                         f.write('%s\n' % desc)
                     else:
@@ -2520,7 +2520,7 @@ def _man_request(self, name, cookie_type, void, aux):
                 f.write('.RS 1i\n')
                 printed_enum = True
 
-        if self.doc and field.field_name in self.doc.fields:
+        if hasattr(self, "doc") and self.doc and field.field_name in self.doc.fields:
             desc = self.doc.fields[field.field_name]
             desc = re.sub(r'`([^`]+)`', r'\\fI\1\\fP', desc)
             if printed_enum:
@@ -2555,7 +2555,7 @@ def _man_request(self, name, cookie_type, void, aux):
                 continue
             f.write('.IP \\fI%s\\fP 1i\n' % (field.c_field_name))
             printed_enum = False
-            if field.enum:
+            if hasattr(field, "enum") and field.enum:
                 # XXX: why the 'xcb' prefix?
                 key = ('xcb', field.enum)
                 if key in enums:
@@ -2575,7 +2575,7 @@ def _man_request(self, name, cookie_type, void, aux):
                     f.write('.RS 1i\n')
                     printed_enum = True
 
-            if self.reply.doc and field.field_name in self.reply.doc.fields:
+            if hasattr(self.reply, "doc") and self.reply.doc and field.field_name in self.reply.doc.fields:
                 desc = self.reply.doc.fields[field.field_name]
                 desc = re.sub(r'`([^`]+)`', r'\\fI\1\\fP', desc)
                 if printed_enum:
@@ -2590,7 +2590,7 @@ def _man_request(self, name, cookie_type, void, aux):
 
     # text description
     f.write('.SH DESCRIPTION\n')
-    if self.doc and self.doc.description:
+    if hasattr(self, "doc") and self.doc and self.doc.description:
         desc = self.doc.description
         desc = re.sub(r'`([^`]+)`', r'\\fI\1\\fP', desc)
         lines = desc.split('\n')
@@ -2611,14 +2611,14 @@ def _man_request(self, name, cookie_type, void, aux):
                  'details.\n') %
                 (cookie_type, self.c_reply_name, base_func_name))
     f.write('.SH ERRORS\n')
-    if self.doc:
+    if hasattr(self, "doc") and self.doc:
         for errtype, errtext in self.doc.errors.iteritems():
             f.write('.IP \\fI%s\\fP 1i\n' % (_t(('xcb', errtype, 'error'))))
             errtext = re.sub(r'`([^`]+)`', r'\\fI\1\\fP', errtext)
             f.write('%s\n' % (errtext))
-    if not self.doc or len(self.doc.errors) == 0:
+    if not hasattr(self, "doc") or not self.doc or len(self.doc.errors) == 0:
         f.write('This request does never generate any errors.\n')
-    if self.doc and self.doc.example:
+    if hasattr(self, "doc") and self.doc and self.doc.example:
         f.write('.SH EXAMPLE\n')
         f.write('.nf\n')
         f.write('.sp\n')
@@ -2626,7 +2626,7 @@ def _man_request(self, name, cookie_type, void, aux):
         f.write('\n'.join(lines) + '\n')
         f.write('.fi\n')
     f.write('.SH SEE ALSO\n')
-    if self.doc:
+    if hasattr(self, "doc") and self.doc:
         see = ['.BR %s (3)' % 'xcb-requests']
         if self.doc.example:
             see.append('.BR %s (3)' % 'xcb-examples')
@@ -2655,7 +2655,7 @@ def _man_event(self, name):
     # Left-adjust instead of adjusting to both sides
     f.write('.ad l\n')
     f.write('.SH NAME\n')
-    brief = self.doc.brief if self.doc else ''
+    brief = self.doc.brief if hasattr(self, "doc") and self.doc else ''
     f.write('%s \\- %s\n' % (self.c_type, brief))
     f.write('.SH SYNOPSIS\n')
     # Don't split words (hyphenate)
@@ -2733,7 +2733,7 @@ def _man_event(self, name):
             if isinstance(field.type, PadType):
                 continue
             f.write('.IP \\fI%s\\fP 1i\n' % (field.c_field_name))
-            if self.doc and field.field_name in self.doc.fields:
+            if hasattr(self, "doc") and self.doc and field.field_name in self.doc.fields:
                 desc = self.doc.fields[field.field_name]
                 desc = re.sub(r'`([^`]+)`', r'\\fI\1\\fP', desc)
                 f.write('%s\n' % desc)
@@ -2742,13 +2742,13 @@ def _man_event(self, name):
 
     # text description
     f.write('.SH DESCRIPTION\n')
-    if self.doc and self.doc.description:
+    if hasattr(self, "doc") and self.doc and self.doc.description:
         desc = self.doc.description
         desc = re.sub(r'`([^`]+)`', r'\\fI\1\\fP', desc)
         lines = desc.split('\n')
         f.write('\n'.join(lines) + '\n')
 
-    if self.doc and self.doc.example:
+    if hasattr(self, "doc") and self.doc and self.doc.example:
         f.write('.SH EXAMPLE\n')
         f.write('.nf\n')
         f.write('.sp\n')
@@ -2756,7 +2756,7 @@ def _man_event(self, name):
         f.write('\n'.join(lines) + '\n')
         f.write('.fi\n')
     f.write('.SH SEE ALSO\n')
-    if self.doc:
+    if hasattr(self, "doc") and self.doc:
         see = ['.BR %s (3)' % 'xcb_generic_event_t']
         if self.doc.example:
             see.append('.BR %s (3)' % 'xcb-examples')
