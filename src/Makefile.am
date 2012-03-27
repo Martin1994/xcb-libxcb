@@ -225,10 +225,12 @@ endif
 nodist_xcbinclude_HEADERS = $(EXTHEADERS)
 noinst_HEADERS = xcbint.h
 
+STATIC_MANS = static-man/xcb-examples.3 static-man/xcb-requests.3
+BUILT_MANS = man/xcb_*.3
+man_MANS = = $(STATIC_MANS) $(BUILT_MANS)
+
 BUILT_SOURCES = $(EXTSOURCES) $(BUILT_MANS)
 CLEANFILES = $(EXTSOURCES) $(EXTHEADERS) $(BUILT_MANS)
-
-include $(srcdir)/list_of_manpages.inc
 
 $(EXTSOURCES): c_client.py
 	$(PYTHON) $(srcdir)/c_client.py -p $(XCBPROTO_XCBPYTHONDIR) $(XCBPROTO_XCBINCLUDEDIR)/$(@:.c=.xml)
