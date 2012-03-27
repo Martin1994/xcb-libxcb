@@ -225,7 +225,7 @@ endif
 nodist_xcbinclude_HEADERS = $(EXTHEADERS)
 noinst_HEADERS = xcbint.h
 
-STATIC_MANS = static-man/xcb-examples.3 static-man/xcb-requests.3
+STATIC_MANS = man/xcb-examples.3 man/xcb-requests.3
 BUILT_MANS = man/xcb_*.3
 man_MANS = = $(STATIC_MANS) $(BUILT_MANS)
 
