@@ -225,8 +225,8 @@ endif
 nodist_xcbinclude_HEADERS = $(EXTHEADERS)
 noinst_HEADERS = xcbint.h
 
-BUILT_SOURCES = $(EXTSOURCES) $(man_MANS)
-CLEANFILES = $(EXTSOURCES) $(EXTHEADERS) $(man_MANS)
+BUILT_SOURCES = $(EXTSOURCES) $(BUILT_MANS)
+CLEANFILES = $(EXTSOURCES) $(EXTHEADERS) $(BUILT_MANS)
 
 include $(srcdir)/list_of_manpages.inc
 
