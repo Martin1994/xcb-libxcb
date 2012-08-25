@@ -25,6 +25,10 @@
 
 /* Utility functions implementable using only public APIs. */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <assert.h>
 #include <sys/types.h>
 #include <limits.h>
@@ -51,7 +55,6 @@
 #include "xcbext.h"
 #include "xcbint.h"
 
-/* must be after "xcbint.h" to get autoconf #defines */
 #if defined(HAVE_TSOL_LABEL_H) && defined(HAVE_IS_SYSTEM_LABELED)
 # include <tsol/label.h>
 # include <sys/stat.h>
