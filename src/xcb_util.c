@@ -467,6 +467,16 @@ xcb_connection_t *xcb_connect_to_display_with_auth_info(const char *displayname,
     else
         c = xcb_connect_to_fd(fd, 0);
 
+    if(c->has_error)
+        goto out;
+
+    /* Make sure requested screen number is in bounds for this server */
+    if((screenp != NULL) && (*screenp >= (int) c->setup->roots_len)) {
+        xcb_disconnect(c);
+        c = _xcb_conn_ret_error(XCB_CONN_CLOSED_INVALID_SCREEN);
+        goto out;
+    }
+
 out:
     free(host);
     free(protocol);
