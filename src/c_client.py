@@ -2908,7 +2908,7 @@ Refer to the README file in xcb/proto for more info.
 # Ensure the man subdirectory exists
 try:
     os.mkdir('man')
-except OSError, e:
+except OSError as e:
     if e.errno != errno.EEXIST:
         raise
 
