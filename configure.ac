@@ -27,15 +27,12 @@ AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 AC_PROG_CC
 
-AC_PATH_PROG(XSLTPROC, xsltproc, no)
-if test "$XSLTPROC" = "no"; then
-   AC_MSG_ERROR([XCB requires xsltproc.])
-fi
-
-HTML_CHECK_RESULT=false
+XSLTPROC=no
+HTML_CHECK_RESULT=no
 if test x"$HAVE_CHECK" = xyes; then
+	AC_PATH_PROG(XSLTPROC, xsltproc, no)
 	if test x"$XSLTPROC" != xno; then
-		HTML_CHECK_RESULT=true
+		HTML_CHECK_RESULT=yes
 	fi
 fi
 AC_SUBST(HTML_CHECK_RESULT)
@@ -258,6 +255,7 @@ echo ""
 echo "  Configuration"
 echo "    XDM support.........: ${have_xdmcp}"
 echo "    Build unit tests....: ${HAVE_CHECK}"
+echo "      with html results.: ${HTML_CHECK_RESULT}"
 echo "    XCB buffer size.....: ${xcb_queue_buffer_size}"
 echo ""
 echo "  X11 extensions"
