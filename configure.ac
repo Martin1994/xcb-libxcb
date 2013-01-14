@@ -81,6 +81,19 @@ AC_HEADER_STDC
 AC_SEARCH_LIBS(getaddrinfo, socket)
 AC_SEARCH_LIBS(connect, socket)
 
+have_sendmsg="no"
+case $host_os in
+linux*)
+        AC_SEARCH_LIBS(sendmsg, socket, [have_sendmsg="yes"], [have_sendmsg="no"])
+        ;;
+esac
+
+case x$have_sendmsg in
+xyes)
+        AC_DEFINE([HAVE_SENDMSG],1,[Define if your platform supports sendmsg])
+        ;;
+esac
+
 have_win32="no"
 lt_enable_auto_import=""
 case $host_os in
@@ -257,6 +270,7 @@ echo "  Package: ${PACKAGE_NAME} ${PACKAGE_VERSION}"
 echo ""
 echo "  Configuration"
 echo "    XDM support.........: ${have_xdmcp}"
+echo "    sendmsg fd passing..: ${have_sendmsg}"
 echo "    Build unit tests....: ${HAVE_CHECK}"
 echo "    XCB buffer size.....: ${xcb_queue_buffer_size}"
 echo ""

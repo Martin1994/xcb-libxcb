@@ -2149,6 +2149,10 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False):
         # no padding necessary - _serialize() keeps track of padding automatically
 
     _c('    ')
+    for field in param_fields:
+        if field.isfd:
+            _c('    xcb_send_fd(c, %s);', field.c_field_name)
+    
     _c('    xcb_ret.sequence = xcb_send_request(c, %s, xcb_parts + 2, &xcb_req);', func_flags)
     
     # free dyn. all. data, if any
