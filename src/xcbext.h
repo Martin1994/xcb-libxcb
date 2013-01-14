@@ -59,6 +59,8 @@ enum xcb_send_request_flags_t {
 
 unsigned int xcb_send_request(xcb_connection_t *c, int flags, struct iovec *vector, const xcb_protocol_request_t *request);
 
+void xcb_send_fd(xcb_connection_t *c, int fd);
+
 /* xcb_take_socket allows external code to ask XCB for permission to
  * take over the write side of the socket and send raw data with
  * xcb_writev. xcb_take_socket provides the sequence number of the last

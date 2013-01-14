@@ -34,6 +34,10 @@
 #include "config.h"
 #endif
 
+#if HAVE_SENDMSG
+#include <sys/socket.h>
+#endif
+
 #ifdef GCC_HAS_VISIBILITY
 #pragma GCC visibility push(hidden)
 #endif
@@ -81,6 +85,16 @@ void *_xcb_map_remove(_xcb_map *q, unsigned int key);
 
 typedef void (*xcb_return_socket_func_t)(void *closure);
 
+#if HAVE_SENDMSG
+#define XCB_MAX_PASS_FD	16
+
+typedef struct _xcb_fd {
+    struct cmsghdr cmsghdr;
+    int fd[XCB_MAX_PASS_FD];
+    int nfd;
+} _xcb_fd;
+#endif
+
 typedef struct _xcb_out {
     pthread_cond_t cond;
     int writing;
@@ -101,6 +115,9 @@ typedef struct _xcb_out {
         xcb_big_requests_enable_cookie_t cookie;
         uint32_t value;
     } maximum_request_length;
+#if HAVE_SENDMSG
+    _xcb_fd out_fd;
+#endif
 } _xcb_out;
 
 int _xcb_out_init(_xcb_out *out);
