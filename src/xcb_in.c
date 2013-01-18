@@ -90,11 +90,26 @@ static void remove_finished_readers(reader_list **prev_reader, uint64_t complete
     }
 }
 
+#if HAVE_SENDMSG
+static int read_fds(xcb_connection_t *c, int *fds, int nfd)
+{
+    int *ifds = &c->in.in_fd.fd[c->in.in_fd.ifd];
+    int infd = c->in.in_fd.nfd - c->in.in_fd.ifd;
+
+    if (nfd > infd)
+        return 0;
+    memcpy(fds, ifds, nfd * sizeof (int));
+    c->in.in_fd.ifd += nfd;
+    return 1;
+}
+#endif
+
 static int read_packet(xcb_connection_t *c)
 {
     xcb_generic_reply_t genrep;
     uint64_t length = 32;
     uint64_t eventlength = 0; /* length after first 32 bytes for GenericEvents */
+    int nfd = 0;         /* Number of file descriptors attached to the reply */
     uint64_t bufsize;
     void *buf;
     pending_reply *pend = 0;
@@ -164,13 +179,18 @@ static int read_packet(xcb_connection_t *c)
             genrep.length = p[2] * p[3] * 2;
         }
         length += genrep.length * 4;
+
+        /* XXX a bit of a hack -- we "know" that all FD replys place
+         * the number of fds in the pad0 byte */
+        if (pend && pend->flags & XCB_REQUEST_REPLY_FDS)
+            nfd = genrep.pad0;
     }
 
     /* XGE events may have sizes > 32 */
     if ((genrep.response_type & 0x7f) == XCB_XGE_EVENT)
         eventlength = genrep.length * 4;
 
-    bufsize = length + eventlength +
+    bufsize = length + eventlength + nfd * sizeof(int)  +
         (genrep.response_type == XCB_REPLY ? 0 : sizeof(uint32_t));
     if (bufsize < INT32_MAX)
         buf = malloc((size_t) bufsize);
@@ -197,6 +217,17 @@ static int read_packet(xcb_connection_t *c)
             return 0;
         }
     }
+
+#if HAVE_SENDMSG
+    if (nfd)
+    {
+        if (!read_fds(c, (int *) &((char *) buf)[length], nfd))
+        {
+            free(buf);
+            return 0;
+        }
+    }
+#endif
 
     if(pend && (pend->flags & XCB_REQUEST_DISCARD_REPLY))
     {
@@ -431,6 +462,11 @@ void *xcb_wait_for_reply(xcb_connection_t *c, unsigned int request, xcb_generic_
     return ret;
 }
 
+int *xcb_get_reply_fds(xcb_connection_t *c, void *reply, size_t reply_size)
+{
+    return (int *) (&((char *) reply)[reply_size]);
+}
+
 static void insert_pending_discard(xcb_connection_t *c, pending_reply **prev_next, uint64_t seq)
 {
     pending_reply *pend;
@@ -577,6 +613,120 @@ xcb_generic_error_t *xcb_request_check(xcb_connection_t *c, xcb_void_cookie_t co
     return ret;
 }
 
+static xcb_generic_event_t *get_special_event(xcb_connection_t *c,
+                                              xcb_special_event_t *se)
+{
+    xcb_generic_event_t *event = NULL;
+    struct event_list *events;
+
+    if ((events = se->events) != NULL) {
+        event = events->event;
+        if (!(se->events = events->next))
+            se->events_tail = &se->events;
+        free (events);
+    }
+    return event;
+}
+
+xcb_generic_event_t *xcb_poll_for_special_event(xcb_connection_t *c,
+                                                xcb_special_event_t *se)
+{
+    xcb_generic_event_t *event;
+
+    if(c->has_error)
+        return 0;
+    pthread_mutex_lock(&c->iolock);
+    event = get_special_event(c, se);
+    pthread_mutex_unlock(&c->iolock);
+    return event;
+}
+
+xcb_generic_event_t *xcb_wait_for_special_event(xcb_connection_t *c,
+                                                xcb_special_event_t *se)
+{
+    xcb_generic_event_t *event;
+
+    if(c->has_error)
+        return 0;
+    pthread_mutex_lock(&c->iolock);
+
+    /* get_special_event returns 0 on empty list. */
+    while(!(event = get_special_event(c, se)))
+        if(!_xcb_conn_wait(c, &se->special_event_cond, 0, 0))
+            break;
+
+    pthread_mutex_unlock(&c->iolock);
+    return event;
+}
+
+xcb_special_event_t *
+xcb_register_for_special_xge(xcb_connection_t *c,
+                             uint8_t extension,
+                             uint32_t eid,
+                             uint32_t *stamp)
+{
+    xcb_special_event_t *se;
+
+    if(c->has_error)
+        return NULL;
+    pthread_mutex_lock(&c->iolock);
+    for (se = c->in.special_events; se; se = se->next) {
+        if (se->extension == extension &&
+            se->eid == eid) {
+            pthread_mutex_unlock(&c->iolock);
+            return NULL;
+        }
+    }
+    se = calloc(1, sizeof(xcb_special_event_t));
+    if (!se) {
+        pthread_mutex_unlock(&c->iolock);
+        return NULL;
+    }
+            
+    se->extension = extension;
+    se->eid = eid;
+
+    se->events = NULL;
+    se->events_tail = &se->events;
+    se->stamp = stamp;
+
+    pthread_cond_init(&se->special_event_cond, 0);
+
+    se->next = c->in.special_events;
+    c->in.special_events = se;
+
+    pthread_mutex_unlock(&c->iolock);
+    return se;
+}
+
+void
+xcb_unregister_for_special_event(xcb_connection_t *c,
+                                 xcb_special_event_t *se)
+{
+    xcb_special_event_t *s, **prev;
+    struct event_list   *events, *next;
+
+    if (c->has_error)
+        return;
+
+    pthread_mutex_lock(&c->iolock);
+
+    for (prev = &c->in.special_events; (s = *prev) != NULL; prev = &(s->next)) {
+        if (s == se) {
+            *prev = se->next;
+            for (events = se->events; events; events = next) {
+                next = events->next;
+                free (events->event);
+                free (events);
+            }
+            pthread_cond_destroy(&se->special_event_cond);
+            free (se);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&c->iolock);
+}
+
 /* Private interface */
 
 int _xcb_in_init(_xcb_in *in)
@@ -665,11 +815,79 @@ void _xcb_in_replies_done(xcb_connection_t *c)
 
 int _xcb_in_read(xcb_connection_t *c)
 {
-    int n = recv(c->fd, c->in.queue + c->in.queue_len, sizeof(c->in.queue) - c->in.queue_len, 0);
-    if(n > 0)
+    int n;
+
+#if HAVE_SENDMSG
+    struct iovec    iov = {
+        .iov_base = c->in.queue + c->in.queue_len,
+        .iov_len = sizeof(c->in.queue) - c->in.queue_len,
+    };
+    struct {
+        struct cmsghdr  cmsghdr;
+        int fd[XCB_MAX_PASS_FD];
+    } fds;
+    struct msghdr msg = {
+        .msg_name = NULL,
+        .msg_namelen = 0,
+        .msg_iov = &iov,
+        .msg_iovlen = 1,
+        .msg_control = &fds,
+        .msg_controllen = sizeof (struct cmsghdr) + sizeof(int) * (XCB_MAX_PASS_FD - c->in.in_fd.nfd),
+    };
+    n = recvmsg(c->fd, &msg, 0);
+
+    /* Check for truncation errors. Only MSG_CTRUNC is
+     * probably possible here, which would indicate that
+     * the sender tried to transmit more than XCB_MAX_PASS_FD
+     * file descriptors.
+     */
+    if (msg.msg_flags & (MSG_TRUNC|MSG_CTRUNC)) {
+        _xcb_conn_shutdown(c, XCB_CONN_CLOSED_FDPASSING_FAILED);
+        return 0;
+    }
+#else
+    n = recv(c->fd, c->in.queue + c->in.queue_len, sizeof(c->in.queue) - c->in.queue_len, 0);
+#endif
+    if(n > 0) {
+#if HAVE_SENDMSG
+        if (msg.msg_controllen > sizeof (struct cmsghdr))
+        {
+            if (fds.cmsghdr.cmsg_level == SOL_SOCKET &&
+                fds.cmsghdr.cmsg_type == SCM_RIGHTS)
+            {
+                int nfd = (msg.msg_controllen - sizeof (struct cmsghdr)) / sizeof (int);
+                memmove(&c->in.in_fd.fd[c->in.in_fd.nfd],
+                        fds.fd,
+                        nfd);
+                c->in.in_fd.nfd += nfd;
+            }
+        }
+#endif
         c->in.queue_len += n;
+    }
     while(read_packet(c))
         /* empty */;
+#if HAVE_SENDMSG
+    if (c->in.in_fd.nfd) {
+        c->in.in_fd.nfd -= c->in.in_fd.ifd;
+        memmove(&c->in.in_fd.fd[0],
+                &c->in.in_fd.fd[c->in.in_fd.ifd],
+                c->in.in_fd.nfd * sizeof (int));
+        c->in.in_fd.ifd = 0;
+
+        /* If we have any left-over file descriptors after emptying
+         * the input buffer, then the server sent some that we weren't
+         * expecting.  Close them and mark the connection as broken;
+         */
+        if (c->in.queue_len == 0 && c->in.in_fd.nfd != 0) {
+            int i;
+            for (i = 0; i < c->in.in_fd.nfd; i++)
+                close(c->in.in_fd.fd[i]);
+            _xcb_conn_shutdown(c, XCB_CONN_CLOSED_FDPASSING_FAILED);
+            return 0;
+        }
+    }
+#endif
 #ifndef _WIN32
     if((n > 0) || (n < 0 && errno == EAGAIN))
 #else

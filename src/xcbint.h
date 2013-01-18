@@ -92,6 +92,7 @@ typedef struct _xcb_fd {
     struct cmsghdr cmsghdr;
     int fd[XCB_MAX_PASS_FD];
     int nfd;
+    int ifd;
 } _xcb_fd;
 #endif
 
@@ -150,6 +151,9 @@ typedef struct _xcb_in {
 
     struct pending_reply *pending_replies;
     struct pending_reply **pending_replies_tail;
+#if HAVE_SENDMSG
+    _xcb_fd in_fd;
+#endif
 } _xcb_in;
 
 int _xcb_in_init(_xcb_in *in);
