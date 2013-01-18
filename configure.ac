@@ -128,7 +128,7 @@ xcbincludedir='${includedir}/xcb'
 AC_SUBST(xcbincludedir)
 
 if  test "x$GCC" = xyes ; then
-    CWARNFLAGS="-Wall -pedantic -Wpointer-arith \
+    CWARNFLAGS="-Wall -Wpointer-arith \
 		-Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
 else
     AC_CHECK_DECL([__SUNPRO_C], [SUNCC="yes"], [SUNCC="no"])
