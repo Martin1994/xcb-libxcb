@@ -3,6 +3,7 @@ composite.*
 damage.*
 dpms.*
 dri2.*
+dri3.*
 glx.*
 randr.*
 record.*

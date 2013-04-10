@@ -191,6 +191,7 @@ XCB_EXTENSION(Composite, "yes")
 XCB_EXTENSION(Damage, "yes")
 XCB_EXTENSION(DPMS, "yes")
 XCB_EXTENSION(DRI2, "yes")
+XCB_EXTENSION(DRI3, "$have_sendmsg")
 XCB_EXTENSION(GLX, "yes")
 XCB_EXTENSION(RandR, "yes")
 XCB_EXTENSION(Record, "yes")
@@ -235,6 +236,7 @@ xcb-composite.pc
 xcb-damage.pc
 xcb-dpms.pc
 xcb-dri2.pc
+xcb-dri3.pc
 xcb-glx.pc
 xcb-randr.pc
 xcb-record.pc
@@ -279,6 +281,7 @@ echo "    Composite...........: ${BUILD_COMPOSITE}"
 echo "    Damage..............: ${BUILD_DAMAGE}"
 echo "    Dpms................: ${BUILD_DPMS}"
 echo "    Dri2................: ${BUILD_DRI2}"
+echo "    Dri3................: ${BUILD_DRI3}"
 echo "    Glx.................: ${BUILD_GLX}"
 echo "    Randr...............: ${BUILD_RANDR}"
 echo "    Record..............: ${BUILD_RECORD}"
