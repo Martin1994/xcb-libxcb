@@ -154,6 +154,7 @@ typedef struct _xcb_in {
 #if HAVE_SENDMSG
     _xcb_fd in_fd;
 #endif
+    struct xcb_special_event *special_events;
 } _xcb_in;
 
 int _xcb_in_init(_xcb_in *in);

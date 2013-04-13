@@ -60,6 +60,23 @@ struct event_list {
     struct event_list *next;
 };
 
+struct xcb_special_event {
+
+    struct xcb_special_event *next;
+
+    /* Match XGE events for the specific extension and event ID (the
+     * first 32 bit word after evtype)
+     */
+    uint8_t     extension;
+    uint32_t    eid;
+    uint32_t    *stamp;
+
+    struct event_list   *events;
+    struct event_list   **events_tail;
+
+    pthread_cond_t special_event_cond;
+};
+
 struct reply_list {
     void *reply;
     struct reply_list *next;
@@ -103,6 +120,46 @@ static int read_fds(xcb_connection_t *c, int *fds, int nfd)
     return 1;
 }
 #endif
+
+typedef struct xcb_ge_special_event_t {
+    uint8_t  response_type; /**<  */
+    uint8_t  extension; /**<  */
+    uint16_t sequence; /**<  */
+    uint32_t length; /**<  */
+    uint16_t evtype; /**<  */
+    uint8_t  pad0[2]; /**< */
+    uint32_t eid; /**< */
+    uint8_t  pad1[16]; /**<  */
+} xcb_ge_special_event_t;
+
+static int event_special(xcb_connection_t *c,
+                         struct event_list *event)
+{
+    struct xcb_special_event *special_event;
+    struct xcb_ge_special_event_t *ges = (void *) event->event;
+
+    /* Special events are always XGE events */
+    if ((ges->response_type & 0x7f) != XCB_XGE_EVENT)
+        return 0;
+
+    for (special_event = c->in.special_events;
+         special_event;
+         special_event = special_event->next)
+    {
+        if (ges->extension == special_event->extension &&
+            ges->eid == special_event->eid)
+        {
+            *special_event->events_tail = event;
+            special_event->events_tail = &event->next;
+            if (special_event->stamp)
+                ++(*special_event->stamp);
+            pthread_cond_signal(&special_event->special_event_cond);
+            return 1;
+        }
+    }
+
+    return 0;
+}
 
 static int read_packet(xcb_connection_t *c)
 {
@@ -268,9 +325,12 @@ static int read_packet(xcb_connection_t *c)
     }
     event->event = buf;
     event->next = 0;
-    *c->in.events_tail = event;
-    c->in.events_tail = &event->next;
-    pthread_cond_signal(&c->in.event_cond);
+
+    if (!event_special(c, event)) {
+        *c->in.events_tail = event;
+        c->in.events_tail = &event->next;
+        pthread_cond_signal(&c->in.event_cond);
+    }
     return 1; /* I have something for you... */
 }
 
@@ -661,17 +721,21 @@ xcb_generic_event_t *xcb_wait_for_special_event(xcb_connection_t *c,
 
 xcb_special_event_t *
 xcb_register_for_special_xge(xcb_connection_t *c,
-                             uint8_t extension,
+                             xcb_extension_t *ext,
                              uint32_t eid,
                              uint32_t *stamp)
 {
     xcb_special_event_t *se;
+    const xcb_query_extension_reply_t   *ext_reply;
 
     if(c->has_error)
         return NULL;
+    ext_reply = xcb_get_extension_data(c, ext);
+    if (!ext_reply)
+        return NULL;
     pthread_mutex_lock(&c->iolock);
     for (se = c->in.special_events; se; se = se->next) {
-        if (se->extension == extension &&
+        if (se->extension == ext_reply->major_opcode &&
             se->eid == eid) {
             pthread_mutex_unlock(&c->iolock);
             return NULL;
@@ -683,7 +747,7 @@ xcb_register_for_special_xge(xcb_connection_t *c,
         return NULL;
     }
             
-    se->extension = extension;
+    se->extension = ext_reply->major_opcode;
     se->eid = eid;
 
     se->events = NULL;
@@ -694,7 +758,6 @@ xcb_register_for_special_xge(xcb_connection_t *c,
 
     se->next = c->in.special_events;
     c->in.special_events = se;
-
     pthread_mutex_unlock(&c->iolock);
     return se;
 }
@@ -705,6 +768,9 @@ xcb_unregister_for_special_event(xcb_connection_t *c,
 {
     xcb_special_event_t *s, **prev;
     struct event_list   *events, *next;
+
+    if (!se)
+        return;
 
     if (c->has_error)
         return;
