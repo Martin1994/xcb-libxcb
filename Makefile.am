@@ -22,6 +22,9 @@ endif
 if BUILD_GLX
 pkgconfig_DATA += xcb-glx.pc
 endif
+if BUILD_PRESENT
+pkgconfig_DATA += xcb-present.pc
+endif
 if BUILD_RANDR
 pkgconfig_DATA += xcb-randr.pc
 endif
