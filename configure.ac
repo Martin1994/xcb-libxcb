@@ -186,6 +186,7 @@ XCB_EXTENSION(DPMS, "yes")
 XCB_EXTENSION(DRI2, "yes")
 XCB_EXTENSION(DRI3, "$have_sendmsg")
 XCB_EXTENSION(GLX, "yes")
+XCB_EXTENSION(Present, "yes")
 XCB_EXTENSION(RandR, "yes")
 XCB_EXTENSION(Record, "yes")
 XCB_EXTENSION(Render, "yes")
@@ -231,6 +232,7 @@ xcb-dpms.pc
 xcb-dri2.pc
 xcb-dri3.pc
 xcb-glx.pc
+xcb-present.pc
 xcb-randr.pc
 xcb-record.pc
 xcb-render.pc

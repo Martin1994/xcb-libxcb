@@ -5,6 +5,7 @@ dpms.*
 dri2.*
 dri3.*
 glx.*
+present.*
 randr.*
 record.*
 render.*

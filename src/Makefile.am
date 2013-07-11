@@ -64,6 +64,14 @@ libxcb_dri3_la_LIBADD = $(XCB_LIBS)
 nodist_libxcb_dri3_la_SOURCES = dri3.c dri3.h
 endif
 
+EXTSOURCES += present.c
+if BUILD_PRESENT
+lib_LTLIBRARIES += libxcb-present.la
+libxcb_present_la_LDFLAGS = -version-info 0:0:0 -no-undefined @lt_enable_auto_import@
+libxcb_present_la_LIBADD = $(XCB_LIBS)
+nodist_libxcb_present_la_SOURCES = present.c present.h
+endif
+
 EXTSOURCES += glx.c
 if BUILD_GLX
 lib_LTLIBRARIES += libxcb-glx.la
