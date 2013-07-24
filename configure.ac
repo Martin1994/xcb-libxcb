@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 # Initialize Autoconf
-AC_PREREQ(2.57)
+AC_PREREQ([2.60])
 AC_INIT([libxcb],
         1.9,
         [xcb@lists.freedesktop.org])
@@ -137,13 +137,6 @@ fi
 AC_SUBST(CWARNFLAGS)
 
 XCB_CHECK_VISIBILITY()
-
-# htmldir is not defined prior to autoconf 2.59c, so on earlier versions
-# set an equivalent value.
-AC_PREREQ([2.59c], [], [AC_SUBST([htmldir], [m4_ifset([AC_PACKAGE_TARNAME],
-	  ['${datadir}/doc/${PACKAGE_TARNAME}'],
-	  ['${datadir}/doc/${PACKAGE}'])
-])])
 
 XCB_CHECK_DOXYGEN()
 
