@@ -7,6 +7,7 @@ AC_INIT([libxcb],
         1.9,
         [xcb@lists.freedesktop.org])
 AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([xcb.pc.in])
 
 # Initialize Automake

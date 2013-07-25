@@ -1,6 +1,7 @@
 aclocal.m4
 build-aux
 libtool
+m4/l*.m4
 mkinstalldirs
 config.h
 config.h.in
