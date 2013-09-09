@@ -74,11 +74,11 @@ static int set_fd_flags(const int fd)
 /* Win32 doesn't have file descriptors and the fcntl function. This block sets the socket in non-blocking mode */
 
 #ifdef _WIN32
-   u_long iMode = 1; /* non-zero puts it in non-blocking mode, 0 in blocking mode */   
+   u_long iMode = 1; /* non-zero puts it in non-blocking mode, 0 in blocking mode */
    int ret = 0;
 
    ret = ioctlsocket(fd, FIONBIO, &iMode);
-   if(ret != 0) 
+   if(ret != 0)
        return 0;
    return 1;
 #else
@@ -195,8 +195,8 @@ static int write_vec(xcb_connection_t *c, struct iovec **vector, int *count)
        an iovec would require more work and I'm not sure of the benefit....works for now */
     vec = *vector;
     while(i < *count)
-    {         	 
-         ret = send(c->fd,vec->iov_base,vec->iov_len,0);	 
+    {
+         ret = send(c->fd,vec->iov_base,vec->iov_len,0);
          if(ret == SOCKET_ERROR)
          {
              err  = WSAGetLastError();
@@ -212,7 +212,7 @@ static int write_vec(xcb_connection_t *c, struct iovec **vector, int *count)
 #else
     n = *count;
     if (n > IOV_MAX)
-	n = IOV_MAX;
+        n = IOV_MAX;
 
 #if HAVE_SENDMSG
     if (c->out.out_fd.nfd) {
@@ -250,7 +250,7 @@ static int write_vec(xcb_connection_t *c, struct iovec **vector, int *count)
             return 1;
     }
 
-#endif /* _WIN32 */    
+#endif /* _WIN32 */
 
     if(n <= 0)
     {

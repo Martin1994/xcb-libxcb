@@ -319,7 +319,7 @@ typedef struct xcb_special_event xcb_special_event_t;
  */
 xcb_generic_event_t *xcb_poll_for_special_event(xcb_connection_t *c,
                                                 xcb_special_event_t *se);
- 
+
 /**
  * @brief Returns the next event from a special queue, blocking until one arrives
  */
@@ -330,7 +330,6 @@ xcb_generic_event_t *xcb_wait_for_special_event(xcb_connection_t *c,
  */
 typedef struct xcb_extension_t xcb_extension_t;  /**< Opaque structure used as key for xcb_get_extension_data_t. */
 
- 
 /**
  * @brief Listen for a special event
  */
