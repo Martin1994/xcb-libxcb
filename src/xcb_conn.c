@@ -216,18 +216,23 @@ static int write_vec(xcb_connection_t *c, struct iovec **vector, int *count)
 
 #if HAVE_SENDMSG
     if (c->out.out_fd.nfd) {
+        char cmsgbuf[CMSG_SPACE(sizeof(int) * XCB_MAX_PASS_FD)];
         struct msghdr msg = {
             .msg_name = NULL,
             .msg_namelen = 0,
             .msg_iov = *vector,
             .msg_iovlen = n,
-            .msg_control = &c->out.out_fd,
-            .msg_controllen = sizeof (struct cmsghdr) + c->out.out_fd.nfd * sizeof (int),
+            .msg_control = cmsgbuf,
+            .msg_controllen = CMSG_LEN(c->out.out_fd.nfd * sizeof (int)),
         };
         int i;
-        c->out.out_fd.cmsghdr.cmsg_len = msg.msg_controllen;
-        c->out.out_fd.cmsghdr.cmsg_level = SOL_SOCKET;
-        c->out.out_fd.cmsghdr.cmsg_type = SCM_RIGHTS;
+        struct cmsghdr *hdr = CMSG_FIRSTHDR(&msg);
+
+        hdr->cmsg_len = msg.msg_controllen;
+        hdr->cmsg_level = SOL_SOCKET;
+        hdr->cmsg_type = SCM_RIGHTS;
+        memcpy(CMSG_DATA(hdr), c->out.out_fd.fd, c->out.out_fd.nfd * sizeof (int));
+
         n = sendmsg(c->fd, &msg, 0);
         if(n < 0 && errno == EAGAIN)
             return 1;

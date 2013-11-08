@@ -34,10 +34,6 @@
 #include "config.h"
 #endif
 
-#if HAVE_SENDMSG
-#include <sys/socket.h>
-#endif
-
 #ifdef GCC_HAS_VISIBILITY
 #pragma GCC visibility push(hidden)
 #endif
@@ -89,7 +85,6 @@ typedef void (*xcb_return_socket_func_t)(void *closure);
 #define XCB_MAX_PASS_FD	16
 
 typedef struct _xcb_fd {
-    struct cmsghdr cmsghdr;
     int fd[XCB_MAX_PASS_FD];
     int nfd;
     int ifd;

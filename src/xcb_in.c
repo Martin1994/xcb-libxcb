@@ -888,17 +888,14 @@ int _xcb_in_read(xcb_connection_t *c)
         .iov_base = c->in.queue + c->in.queue_len,
         .iov_len = sizeof(c->in.queue) - c->in.queue_len,
     };
-    struct {
-        struct cmsghdr  cmsghdr;
-        int fd[XCB_MAX_PASS_FD];
-    } fds;
+    char cmsgbuf[CMSG_SPACE(sizeof(int) * XCB_MAX_PASS_FD)];
     struct msghdr msg = {
         .msg_name = NULL,
         .msg_namelen = 0,
         .msg_iov = &iov,
         .msg_iovlen = 1,
-        .msg_control = &fds,
-        .msg_controllen = sizeof (struct cmsghdr) + sizeof(int) * (XCB_MAX_PASS_FD - c->in.in_fd.nfd),
+        .msg_control = cmsgbuf,
+        .msg_controllen = CMSG_SPACE(sizeof(int) * (XCB_MAX_PASS_FD - c->in.in_fd.nfd)),
     };
     n = recvmsg(c->fd, &msg, 0);
 
@@ -916,15 +913,12 @@ int _xcb_in_read(xcb_connection_t *c)
 #endif
     if(n > 0) {
 #if HAVE_SENDMSG
-        if (msg.msg_controllen > sizeof (struct cmsghdr))
-        {
-            if (fds.cmsghdr.cmsg_level == SOL_SOCKET &&
-                fds.cmsghdr.cmsg_type == SCM_RIGHTS)
-            {
-                int nfd = (msg.msg_controllen - sizeof (struct cmsghdr)) / sizeof (int);
-                memmove(&c->in.in_fd.fd[c->in.in_fd.nfd],
-                        fds.fd,
-                        nfd);
+        struct cmsghdr *hdr;
+
+        for (hdr = CMSG_FIRSTHDR(&msg); hdr; hdr = CMSG_NXTHDR(&msg, hdr)) {
+            if (hdr->cmsg_level == SOL_SOCKET && hdr->cmsg_type == SCM_RIGHTS) {
+                int nfd = (hdr->cmsg_len - CMSG_LEN(0)) / sizeof (int);
+                memcpy(&c->in.in_fd.fd[c->in.in_fd.nfd], CMSG_DATA(hdr), nfd * sizeof (int));
                 c->in.in_fd.nfd += nfd;
             }
         }
