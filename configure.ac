@@ -81,14 +81,16 @@ AC_HEADER_STDC
 AC_SEARCH_LIBS(getaddrinfo, socket)
 AC_SEARCH_LIBS(connect, socket)
 
-have_sendmsg="no"
-case $host_os in
-linux*)
-        AC_SEARCH_LIBS(sendmsg, socket, [have_sendmsg="yes"], [have_sendmsg="no"])
-        ;;
+AC_ARG_ENABLE(sendfds, AS_HELP_STRING([--disable-sendfds], [Support FD passing (default: auto)]),
+	      [sendfds=$enableval], [sendfds=auto])
+
+case x$sendfds in
+xauto)
+	AC_SEARCH_LIBS(sendmsg, socket, [sendfds="yes"], [sendfds="no"])
+	;;
 esac
 
-case x$have_sendmsg in
+case x$sendfds in
 xyes)
         AC_DEFINE([HAVE_SENDMSG],1,[Define if your platform supports sendmsg])
         ;;
@@ -184,7 +186,7 @@ XCB_EXTENSION(Composite, "yes")
 XCB_EXTENSION(Damage, "yes")
 XCB_EXTENSION(DPMS, "yes")
 XCB_EXTENSION(DRI2, "yes")
-XCB_EXTENSION(DRI3, "$have_sendmsg")
+XCB_EXTENSION(DRI3, "$sendfds")
 XCB_EXTENSION(GLX, "yes")
 XCB_EXTENSION(Present, "yes")
 XCB_EXTENSION(RandR, "yes")
@@ -267,7 +269,7 @@ echo "  Package: ${PACKAGE_NAME} ${PACKAGE_VERSION}"
 echo ""
 echo "  Configuration"
 echo "    XDM support.........: ${have_xdmcp}"
-echo "    sendmsg fd passing..: ${have_sendmsg}"
+echo "    sendmsg fd passing..: ${sendfds}"
 echo "    Build unit tests....: ${HAVE_CHECK}"
 echo "      with html results.: ${HTML_CHECK_RESULT}"
 echo "    XCB buffer size.....: ${xcb_queue_buffer_size}"
