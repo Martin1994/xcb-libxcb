@@ -4,7 +4,7 @@
 # Initialize Autoconf
 AC_PREREQ(2.57)
 AC_INIT([libxcb],
-        1.9.2,
+        1.9.3,
         [xcb@lists.freedesktop.org])
 AC_CONFIG_SRCDIR([xcb.pc.in])
 
