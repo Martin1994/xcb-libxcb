@@ -483,7 +483,7 @@ xcb_connection_t *xcb_connect_to_fd(int fd, xcb_auth_info_t *auth_info);
  * @param c: The connection.
  *
  * Closes the file descriptor and frees all memory associated with the
- * connection @c c.
+ * connection @c c. If @p c is @c NULL, nothing is done.
  */
 void xcb_disconnect(xcb_connection_t *c);
 

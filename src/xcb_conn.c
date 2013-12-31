@@ -350,7 +350,7 @@ xcb_connection_t *xcb_connect_to_fd(int fd, xcb_auth_info_t *auth_info)
 
 void xcb_disconnect(xcb_connection_t *c)
 {
-    if(is_static_error_conn(c))
+    if(c == NULL || is_static_error_conn(c))
         return;
 
     free(c->setup);
