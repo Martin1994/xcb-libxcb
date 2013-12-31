@@ -64,10 +64,19 @@ typedef struct {
     uint16_t length;
 } xcb_setup_generic_t;
 
+/* Keep this list in sync with is_static_error_conn()! */
 static const int xcb_con_error = XCB_CONN_ERROR;
 static const int xcb_con_closed_mem_er = XCB_CONN_CLOSED_MEM_INSUFFICIENT;
 static const int xcb_con_closed_parse_er = XCB_CONN_CLOSED_PARSE_ERR;
 static const int xcb_con_closed_screen_er = XCB_CONN_CLOSED_INVALID_SCREEN;
+
+static int is_static_error_conn(xcb_connection_t *c)
+{
+    return c == (xcb_connection_t *) &xcb_con_error ||
+           c == (xcb_connection_t *) &xcb_con_closed_mem_er ||
+           c == (xcb_connection_t *) &xcb_con_closed_parse_er ||
+           c == (xcb_connection_t *) &xcb_con_closed_screen_er;
+}
 
 static int set_fd_flags(const int fd)
 {
@@ -341,7 +350,7 @@ xcb_connection_t *xcb_connect_to_fd(int fd, xcb_auth_info_t *auth_info)
 
 void xcb_disconnect(xcb_connection_t *c)
 {
-    if(c->has_error)
+    if(is_static_error_conn(c))
         return;
 
     free(c->setup);
