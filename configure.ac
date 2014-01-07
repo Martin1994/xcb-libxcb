@@ -12,7 +12,6 @@ AC_CONFIG_SRCDIR([xcb.pc.in])
 
 # Initialize Automake
 AM_INIT_AUTOMAKE([foreign dist-bzip2])
-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 # Set common system defines for POSIX extensions, such as _GNU_SOURCE
 # Must be called before any macros that run the compiler (like AC_PROG_LIBTOOL)
@@ -28,7 +27,12 @@ AC_CONFIG_HEADERS([src/config.h])
 
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
-AC_PROG_CC
+
+# Require xorg-macros minimum of 1.18 - Initial version
+m4_ifndef([XORG_MACROS_VERSION],
+          [m4_fatal([must install xorg-macros 1.18 or later before running autoconf/autogen])])
+XORG_MACROS_VERSION(1.18)
+XORG_DEFAULT_OPTIONS
 
 XSLTPROC=no
 HTML_CHECK_RESULT=no
