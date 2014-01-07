@@ -28,6 +28,13 @@ m4_ifndef([XORG_MACROS_VERSION],
           [m4_fatal([must install xorg-macros 1.18 or later before running autoconf/autogen])])
 XORG_MACROS_VERSION(1.18)
 XORG_DEFAULT_OPTIONS
+XORG_ENABLE_DEVEL_DOCS
+XORG_WITH_DOXYGEN
+
+# The dot drawing tool is checked by XORG_WITH_DOXYGEN, needed for xcb manual
+if test x"$HAVE_DOT" = xno; then
+    AC_MSG_WARN([dot not found - doxygen targets will be skipped])
+fi
 
 PKG_CHECK_MODULES(CHECK, [check >= 0.9.4], [HAVE_CHECK=yes], [HAVE_CHECK=no])
 AM_CONDITIONAL(HAVE_CHECK, test x$HAVE_CHECK = xyes)
@@ -179,8 +186,6 @@ xcbincludedir='${includedir}/xcb'
 AC_SUBST(xcbincludedir)
 
 XCB_CHECK_VISIBILITY()
-
-XCB_CHECK_DOXYGEN()
 
 AC_CHECK_FUNC(getaddrinfo, [AC_DEFINE(HAVE_GETADDRINFO, 1, [getaddrinfo() function is available])], )
 
