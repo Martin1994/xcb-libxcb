@@ -149,7 +149,7 @@ AM_CONDITIONAL([XCB_HAVE_WIN32], [test "x${have_win32}" = "xyes"])
 
 dnl define buffer queue size
 AC_ARG_WITH([queue-size],
-            AC_HELP_STRING([--with-queue-size=SIZE],
+            AS_HELP_STRING([--with-queue-size=SIZE],
             [Set the XCB buffer queue size (default is 16384)]),
             [xcb_queue_buffer_size="$withval"],
             [xcb_queue_buffer_size=16384])
