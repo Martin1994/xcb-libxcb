@@ -3,9 +3,9 @@
 
 # Initialize Autoconf
 AC_PREREQ([2.60])
-AC_INIT([libxcb],
-        1.10,
-        [xcb@lists.freedesktop.org])
+AC_INIT([libxcb],[1.10],
+        [https://bugs.freedesktop.org/enter_bug.cgi?product=xcb],
+        [libxcb])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([xcb.pc.in])
