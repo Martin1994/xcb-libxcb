@@ -20,8 +20,8 @@ AM_PATH_PYTHON([2.6])
 AC_USE_SYSTEM_EXTENSIONS
 
 # Initialize libtool
-AC_LIBTOOL_WIN32_DLL
-AC_PROG_LIBTOOL
+LT_PREREQ([2.2])
+LT_INIT([win32-dll])
 
 # Require xorg-macros minimum of 1.18 - Initial version
 m4_ifndef([XORG_MACROS_VERSION],
