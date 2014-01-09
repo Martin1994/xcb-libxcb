@@ -42,10 +42,10 @@ AM_CONDITIONAL(HAVE_CHECK, test x$HAVE_CHECK = xyes)
 XSLTPROC=no
 HTML_CHECK_RESULT=no
 if test x"$HAVE_CHECK" = xyes; then
-	AC_PATH_PROG(XSLTPROC, xsltproc, no)
-	if test x"$XSLTPROC" != xno; then
-		HTML_CHECK_RESULT=yes
-	fi
+        AC_PATH_PROG(XSLTPROC, xsltproc, no)
+        if test x"$XSLTPROC" != xno; then
+                HTML_CHECK_RESULT=yes
+        fi
 fi
 AC_SUBST(HTML_CHECK_RESULT)
 
@@ -56,17 +56,17 @@ PKG_CHECK_MODULES(NEEDED, $NEEDED)
 
 have_xdmcp="no"
 PKG_CHECK_MODULES(XDMCP, xdmcp,
-	AC_CHECK_LIB(Xdmcp, XdmcpWrap,
-		[
-		AC_DEFINE(HASXDMAUTH,1,[Has Wraphelp.c needed for XDM AUTH protocols])
-		NEEDED="$NEEDED xdmcp"
-		have_xdmcp="yes"
-		],
-		[
-		XDMCP_CFLAGS=
-		XDMCP_LIBS=
-		], [$XDMCP_LIBS]),
-	[AC_MSG_RESULT(no)])
+        AC_CHECK_LIB(Xdmcp, XdmcpWrap,
+                [
+                AC_DEFINE(HASXDMAUTH,1,[Has Wraphelp.c needed for XDM AUTH protocols])
+                NEEDED="$NEEDED xdmcp"
+                have_xdmcp="yes"
+                ],
+                [
+                XDMCP_CFLAGS=
+                XDMCP_LIBS=
+                ], [$XDMCP_LIBS]),
+        [AC_MSG_RESULT(no)])
 
 AC_SUBST(NEEDED)
 
@@ -91,12 +91,12 @@ AC_SEARCH_LIBS(getaddrinfo, socket)
 AC_SEARCH_LIBS(connect, socket)
 
 AC_ARG_ENABLE(sendfds, AS_HELP_STRING([--disable-sendfds], [Support FD passing (default: auto)]),
-	      [sendfds=$enableval], [sendfds=auto])
+              [sendfds=$enableval], [sendfds=auto])
 
 case x$sendfds in
 xauto)
-	AC_SEARCH_LIBS(sendmsg, socket, [sendfds="yes"], [sendfds="no"])
-	;;
+        AC_SEARCH_LIBS(sendmsg, socket, [sendfds="yes"], [sendfds="no"])
+        ;;
 esac
 
 # XPG4v2/UNIX95 added msg_control - check to see if we need to define
@@ -143,12 +143,12 @@ have_win32="no"
 lt_enable_auto_import=""
 case $host_os in
 mingw*)
-	have_win32="yes"
-	lt_enable_auto_import="-Wl,--enable-auto-import"
- 	;;
+        have_win32="yes"
+        lt_enable_auto_import="-Wl,--enable-auto-import"
+        ;;
 linux*)
-	AC_DEFINE([HAVE_ABSTRACT_SOCKETS], 1, [Define if your platform supports abstract sockets])
-	;;
+        AC_DEFINE([HAVE_ABSTRACT_SOCKETS], 1, [Define if your platform supports abstract sockets])
+        ;;
 esac
 
 AC_SUBST(lt_enable_auto_import)
@@ -165,11 +165,11 @@ AC_DEFINE_UNQUOTED(XCB_QUEUE_BUFFER_SIZE, [$xcb_queue_buffer_size],
 
 dnl check for the sockaddr_un.sun_len member
 AC_CHECK_MEMBER([struct sockaddr_un.sun_len],
-		[AC_DEFINE(HAVE_SOCKADDR_SUN_LEN,1,[Have the sockaddr_un.sun_len member.])],
-		[],
-		[ #include <sys/types.h>
-		  #include <sys/un.h>
-		])
+                [AC_DEFINE(HAVE_SOCKADDR_SUN_LEN,1,[Have the sockaddr_un.sun_len member.])],
+                [],
+                [ #include <sys/types.h>
+                  #include <sys/un.h>
+                ])
 
 dnl check for support for Solaris Trusted Extensions
 AC_CHECK_HEADERS([tsol/label.h])
@@ -177,10 +177,10 @@ AC_CHECK_FUNCS([is_system_labeled])
 
 dnl check for IOV_MAX, and fall back to UIO_MAXIOV on BSDish systems
 AC_CHECK_DECL([IOV_MAX], [],
-	      [AC_CHECK_DECL([UIO_MAXIOV], [AC_DEFINE([IOV_MAX], [UIO_MAXIOV])],
-					   [AC_DEFINE([IOV_MAX], [16], [Define if not provided by <limits.h>])],
-					   [[#include <sys/uio.h>]])],
-	      [[#include <limits.h>]])
+              [AC_CHECK_DECL([UIO_MAXIOV], [AC_DEFINE([IOV_MAX], [UIO_MAXIOV])],
+                                           [AC_DEFINE([IOV_MAX], [16], [Define if not provided by <limits.h>])],
+                                           [[#include <sys/uio.h>]])],
+              [[#include <limits.h>]])
 
 xcbincludedir='${includedir}/xcb'
 AC_SUBST(xcbincludedir)
@@ -190,26 +190,26 @@ XCB_CHECK_VISIBILITY()
 AC_CHECK_FUNC(getaddrinfo, [AC_DEFINE(HAVE_GETADDRINFO, 1, [getaddrinfo() function is available])], )
 
 case $host_os in
-	# darwin through Snow Leopard has poll() but can't be used to poll character devices.
-	darwin@<:@789@:>@*|darwin10*) ;;
-	darwin*)
-		_ac_xorg_macosx_version_min=""
-		if echo $CPPFLAGS $CFLAGS | grep -q mmacosx-version-min ; then
-			_ac_xorg_macosx_version_min=`echo $CPPFLAGS $CFLAGS | sed 's/^.*-mmacosx-version-min=\(@<:@^ @:>@*\).*$/\1/'`
-		else
-			_ac_xorg_macosx_version_min=$MACOSX_DEPLOYMENT_TARGET
-		fi
-		case $_ac_xorg_macosx_version_min in
-			10.@<:@0123456@:>@|10.@<:@0123456@:>@.*) ;;
-			*)
-				AC_CHECK_FUNC(poll, [AC_DEFINE(USE_POLL, 1, [poll() function is available])], )
-			;;
-		esac
-		unset _ac_xorg_macosx_version_min
-		;;
-	*)
-		AC_CHECK_FUNC(poll, [AC_DEFINE(USE_POLL, 1, [poll() function is available])], )
-	;;
+        # darwin through Snow Leopard has poll() but can't be used to poll character devices.
+        darwin@<:@789@:>@*|darwin10*) ;;
+        darwin*)
+                _ac_xorg_macosx_version_min=""
+                if echo $CPPFLAGS $CFLAGS | grep -q mmacosx-version-min ; then
+                        _ac_xorg_macosx_version_min=`echo $CPPFLAGS $CFLAGS | sed 's/^.*-mmacosx-version-min=\(@<:@^ @:>@*\).*$/\1/'`
+                else
+                        _ac_xorg_macosx_version_min=$MACOSX_DEPLOYMENT_TARGET
+                fi
+                case $_ac_xorg_macosx_version_min in
+                        10.@<:@0123456@:>@|10.@<:@0123456@:>@.*) ;;
+                        *)
+                                AC_CHECK_FUNC(poll, [AC_DEFINE(USE_POLL, 1, [poll() function is available])], )
+                        ;;
+                esac
+                unset _ac_xorg_macosx_version_min
+                ;;
+        *)
+                AC_CHECK_FUNC(poll, [AC_DEFINE(USE_POLL, 1, [poll() function is available])], )
+        ;;
 esac
 
 XCB_EXTENSION(Composite, "yes")
@@ -241,12 +241,12 @@ XCB_EXTENSION(XvMC, "yes")
 
 AC_ARG_WITH(launchd, AS_HELP_STRING([--with-launchd], [Build with support for Apple's launchd (default: auto)]), [LAUNCHD=$withval], [LAUNCHD=auto])
 if test "x$LAUNCHD" = xauto; then
-	unset LAUNCHD
-	AC_CHECK_PROG(LAUNCHD, [launchd], [yes], [no], [$PATH$PATH_SEPARATOR/sbin])
+        unset LAUNCHD
+        AC_CHECK_PROG(LAUNCHD, [launchd], [yes], [no], [$PATH$PATH_SEPARATOR/sbin])
 fi
 
 if test "x$LAUNCHD" = xyes ; then
-	AC_DEFINE(HAVE_LAUNCHD, 1, [launchd support available])
+        AC_DEFINE(HAVE_LAUNCHD, 1, [launchd support available])
 fi
 
 AC_CONFIG_FILES([
