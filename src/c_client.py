@@ -305,9 +305,9 @@ def _c_type_setup(self, name, postfix):
     self.c_cookie_type = _t(name + ('cookie',))
     self.c_reply_fds_name = _n(name + ('reply_fds',))
 
-    self.need_aux = False
-    self.need_serialize = False
-    self.need_sizeof = False
+    self.c_need_aux = False
+    self.c_need_serialize = False
+    self.c_need_sizeof = False
 
     self.c_aux_name = _n(name + ('aux',))
     self.c_aux_checked_name = _n(name + ('aux', 'checked'))
@@ -318,10 +318,10 @@ def _c_type_setup(self, name, postfix):
     self.c_sizeof_name = _n(name + ('sizeof',))
 
     # special case: structs where variable size fields are followed by fixed size fields
-    self.var_followed_by_fixed_fields = False
+    self.c_var_followed_by_fixed_fields = False
 
     if self.is_switch:
-        self.need_serialize = True
+        self.c_need_serialize = True
         self.c_container = 'struct'
         for bitcase in self.bitcases:
             bitcase.c_field_name = _cpp(bitcase.field_name)
@@ -340,7 +340,7 @@ def _c_type_setup(self, name, postfix):
             if field.type.is_list:
                 _c_type_setup(field.type.member, field.field_type, ())
                 if (field.type.nmemb is None):
-                    self.need_sizeof = True
+                    self.c_need_sizeof = True
 
             field.c_field_type = _t(field.field_type)
             field.c_field_const_type = ('' if field.type.nmemb == 1 else 'const ') + field.c_field_type
@@ -357,9 +357,9 @@ def _c_type_setup(self, name, postfix):
             if field.type.is_switch:
                 field.c_pointer = '*'
                 field.c_field_const_type = 'const ' + field.c_field_type
-                self.need_aux = True
+                self.c_need_aux = True
             elif not field.type.fixed_size() and not field.type.is_bitcase:
-                self.need_sizeof = True
+                self.c_need_sizeof = True
 
             field.c_iterator_type = _t(field.field_type + ('iterator',))      # xcb_fieldtype_iterator_t
             field.c_iterator_name = _n(name + (field.field_name, 'iterator')) # xcb_container_field_iterator
@@ -379,20 +379,20 @@ def _c_type_setup(self, name, postfix):
                 # special case: intermixed fixed and variable size fields
                 if prev_varsized_field is not None and not field.type.is_pad and field.wire:
                     if not self.is_union:
-                        self.need_serialize = True
-                        self.var_followed_by_fixed_fields = True
+                        self.c_need_serialize = True
+                        self.c_var_followed_by_fixed_fields = True
             else:
                 self.last_varsized_field = field
                 prev_varsized_field = field
                 prev_varsized_offset = 0
 
-            if self.var_followed_by_fixed_fields:
+            if self.c_var_followed_by_fixed_fields:
                 if field.type.fixed_size():
                     field.prev_varsized_field = None
 
-    if self.need_serialize:
+    if self.c_need_serialize:
         # when _unserialize() is wanted, create _sizeof() as well for consistency reasons
-        self.need_sizeof = True
+        self.c_need_sizeof = True
 
     # as switch does never appear at toplevel,
     # continue here with type construction
@@ -408,7 +408,7 @@ def _c_type_setup(self, name, postfix):
                 # _c_iterator(field.type, field_name) necessary
 
     if not self.is_bitcase:
-        if self.need_serialize:
+        if self.c_need_serialize:
             if self.c_serialize_name not in finished_serializers:
                 finished_serializers.append(self.c_serialize_name)
                 _c_serialize('serialize', self)
@@ -416,10 +416,10 @@ def _c_type_setup(self, name, postfix):
                 # _unpack() and _unserialize() are only needed for special cases:
                 #   switch -> unpack
                 #   special cases -> unserialize
-                if self.is_switch or self.var_followed_by_fixed_fields:
+                if self.is_switch or self.c_var_followed_by_fixed_fields:
                     _c_serialize('unserialize', self)
 
-        if self.need_sizeof:
+        if self.c_need_sizeof:
             if self.c_sizeof_name not in finished_sizeof:
                 if not module.namespace.is_ext or self.name[:2] == module.namespace.prefix:
                     finished_sizeof.append(self.c_sizeof_name)
@@ -906,7 +906,7 @@ def _c_serialize_helper_fields_variable_size(context, self, field,
         var_field_name = 'xcb_tmp'
 
         # special case: intermixed fixed and variable size fields
-        if self.var_followed_by_fixed_fields and 'unserialize' == context:
+        if self.c_var_followed_by_fixed_fields and 'unserialize' == context:
             value = '    %s = (%s *)xcb_tmp;' % (field.c_field_name, field.c_field_type)
             temp_vars.append('    %s *%s;' % (field.type.c_type, field.c_field_name))
         # special case: switch
@@ -963,11 +963,11 @@ def _c_serialize_helper_fields(context, self,
 
         # switch/bitcase: fixed size fields must be considered explicitly
         if field.type.fixed_size():
-            if self.is_bitcase or self.var_followed_by_fixed_fields:
+            if self.is_bitcase or self.c_var_followed_by_fixed_fields:
                 if prev_field_was_variable and need_padding:
                     # insert padding
 #                    count += _c_serialize_helper_insert_padding(context, code_lines, space,
-#                                                                self.var_followed_by_fixed_fields)
+#                                                                self.c_var_followed_by_fixed_fields)
                     prev_field_was_variable = False
 
                 # prefix for fixed size fields
@@ -985,13 +985,13 @@ def _c_serialize_helper_fields(context, self,
                 # Variable length pad is <pad align= />
                 code_lines.append('%s    xcb_align_to = %d;' % (space, field.type.align))
                 count += _c_serialize_helper_insert_padding(context, code_lines, space,
-                                                        self.var_followed_by_fixed_fields)
+                                                        self.c_var_followed_by_fixed_fields)
                 continue
             else:
                 # switch/bitcase: always calculate padding before and after variable sized fields
                 if need_padding or is_bitcase:
                     count += _c_serialize_helper_insert_padding(context, code_lines, space,
-                                                            self.var_followed_by_fixed_fields)
+                                                            self.c_var_followed_by_fixed_fields)
 
                 value, length = _c_serialize_helper_fields_variable_size(context, self, field,
                                                                          code_lines, temp_vars,
@@ -1003,7 +1003,7 @@ def _c_serialize_helper_fields(context, self,
             code_lines.append('%s%s' % (space, value))
 
         if field.type.fixed_size():
-            if is_bitcase or self.var_followed_by_fixed_fields:
+            if is_bitcase or self.c_var_followed_by_fixed_fields:
                 # keep track of (un)serialized object's size
                 code_lines.append('%s    xcb_block_len += %s;' % (space, length))
                 if context in ('unserialize', 'unpack', 'sizeof'):
@@ -1014,7 +1014,7 @@ def _c_serialize_helper_fields(context, self,
             if '' != length:
                 # special case: intermixed fixed and variable size fields
                 if (not field.type.fixed_size() and
-                    self.var_followed_by_fixed_fields and 'unserialize' == context):
+                    self.c_var_followed_by_fixed_fields and 'unserialize' == context):
                     temp_vars.append('    int %s_len;' % field.c_field_name)
                     code_lines.append('%s    %s_len = %s;' % (space, field.c_field_name, length))
                     code_lines.append('%s    xcb_block_len += %s_len;' % (space, field.c_field_name))
@@ -1034,7 +1034,7 @@ def _c_serialize_helper_fields(context, self,
         code_lines.append('%s    xcb_align_to = ALIGNOF(%s);' % (space, 'char' if field.c_field_type == 'void' else field.c_field_type))
 
         need_padding = True
-        if self.var_followed_by_fixed_fields:
+        if self.c_var_followed_by_fixed_fields:
             need_padding = False
 
     return count
@@ -1051,7 +1051,7 @@ def _c_serialize_helper(context, complex_type,
         complex_name = complex_type.name
     else:
         self = complex_type
-        if self.var_followed_by_fixed_fields and 'unserialize' == context:
+        if self.c_var_followed_by_fixed_fields and 'unserialize' == context:
             complex_name = 'xcb_out'
         else:
             complex_name = '_aux'
@@ -1065,7 +1065,7 @@ def _c_serialize_helper(context, complex_type,
     # all other data types can be evaluated one field a time
     else:
         # unserialize & fixed size fields: simply cast the buffer to the respective xcb_out type
-        if context in ('unserialize', 'unpack', 'sizeof') and not self.var_followed_by_fixed_fields:
+        if context in ('unserialize', 'unpack', 'sizeof') and not self.c_var_followed_by_fixed_fields:
             code_lines.append('%s    xcb_block_len += sizeof(%s);' % (space, self.c_type))
             code_lines.append('%s    xcb_tmp += xcb_block_len;' % space)
             code_lines.append('%s    xcb_buffer_len += xcb_block_len;' % space)
@@ -1136,7 +1136,7 @@ def _c_serialize(context, self):
     prefix = []
 
     if 'serialize' == context:
-        if not self.is_switch and not self.var_followed_by_fixed_fields:
+        if not self.is_switch and not self.c_var_followed_by_fixed_fields:
             _c('    %s *xcb_out = *_buffer;', self.c_type)
             _c('    unsigned int xcb_out_pad = -sizeof(%s) & 3;', self.c_type)
             _c('    unsigned int xcb_buffer_len = sizeof(%s) + xcb_out_pad;', self.c_type)
@@ -1151,7 +1151,7 @@ def _c_serialize(context, self):
     elif context in ('unserialize', 'unpack'):
         _c('    char *xcb_tmp = (char *)_buffer;')
         if not self.is_switch:
-            if not self.var_followed_by_fixed_fields:
+            if not self.c_var_followed_by_fixed_fields:
                 _c('    const %s *_aux = (%s *)_buffer;', self.c_type, self.c_type)
                 prefix = [('_aux', '->', self)]
             else:
@@ -1177,7 +1177,7 @@ def _c_serialize(context, self):
             _c('    return %s(%s, &_aux);', self.c_unpack_name, reduce(lambda x,y: "%s, %s" % (x, y), param_names))
             _c('}')
             return
-        elif self.var_followed_by_fixed_fields:
+        elif self.c_var_followed_by_fixed_fields:
             # special case: call _unserialize()
             _c('    return %s(%s, NULL);', self.c_unserialize_name, reduce(lambda x,y: "%s, %s" % (x, y), param_names))
             _c('}')
@@ -1200,11 +1200,11 @@ def _c_serialize(context, self):
     elif 'sizeof' == context:
         # neither switch nor intermixed fixed and variable size fields:
         # evaluate parameters directly
-        if not (self.is_switch or self.var_followed_by_fixed_fields):
+        if not (self.is_switch or self.c_var_followed_by_fixed_fields):
 
             # look if we have to declare an '_aux' variable at all
             if len(list(filter(lambda x: x.find('_aux')!=-1, code_lines)))>0:
-                if not self.var_followed_by_fixed_fields:
+                if not self.c_var_followed_by_fixed_fields:
                     _c('    const %s *_aux = (%s *)_buffer;', self.c_type, self.c_type)
                 else:
                     _c('    %s *_aux = malloc(sizeof(%s));', self.c_type, self.c_type)
@@ -1242,13 +1242,13 @@ def _c_serialize(context, self):
 
         # serialize: handle variable size fields in a loop
         if 'serialize' == context:
-            if not self.is_switch and not self.var_followed_by_fixed_fields:
+            if not self.is_switch and not self.c_var_followed_by_fixed_fields:
                 if len(wire_fields)>0:
                     _c('    *xcb_out = *_aux;')
             # copy variable size fields into the buffer
             if variable_size_fields > 0:
                 # xcb_out padding
-                if not self.is_switch and not self.var_followed_by_fixed_fields:
+                if not self.is_switch and not self.c_var_followed_by_fixed_fields:
                     _c('    xcb_tmp = (char*)++xcb_out;')
                     _c('    xcb_tmp += xcb_out_pad;')
                 else:
@@ -1342,7 +1342,7 @@ def _c_iterator(self, name):
             # FIXME - how to determine the size of a variable size union??
             _c('    /* FIXME - determine the size of the union %s */', self.c_type)
         else:
-            if self.need_sizeof:
+            if self.c_need_sizeof:
                 _c('    xcb_generic_iterator_t child;')
                 _c('    child.data = (%s *)(((char *)R) + %s(R));',
                    self.c_type, self.c_sizeof_name)
@@ -1929,12 +1929,12 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
         if field.wire and not field.auto:
             # We need to set the field up in the structure
             wire_fields.append(field)
-        if field.type.need_serialize or field.type.need_sizeof:
+        if field.type.c_need_serialize or field.type.c_need_sizeof:
             serial_fields.append(field)
 
     for field in param_fields:
         c_field_const_type = field.c_field_const_type
-        if field.type.need_serialize and not aux:
+        if field.type.c_need_serialize and not aux:
             c_field_const_type = "const void"
         if len(c_field_const_type) > maxtypelen:
             maxtypelen = len(c_field_const_type)
@@ -2019,7 +2019,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
 
     for field in param_fields:
         c_field_const_type = field.c_field_const_type
-        if field.type.need_serialize and not aux:
+        if field.type.c_need_serialize and not aux:
             c_field_const_type = "const void"
         spacing = ' ' * (maxtypelen - len(c_field_const_type))
         _hc(' ** @param %s%s %s%s', c_field_const_type, spacing, field.c_pointer, field.c_field_name)
@@ -2042,7 +2042,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
         count = count - 1
         c_field_const_type = field.c_field_const_type
         c_pointer = field.c_pointer
-        if field.type.need_serialize and not aux:
+        if field.type.c_need_serialize and not aux:
             c_field_const_type = "const void"
             c_pointer = '*'
         spacing = ' ' * (maxtypelen - len(c_field_const_type))
@@ -2054,11 +2054,11 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
            spacing, c_pointer, field.c_field_name, comma)
 
     count = 2
-    if not self.var_followed_by_fixed_fields:
+    if not self.c_var_followed_by_fixed_fields:
         for field in param_fields:
             if not field.type.fixed_size():
                 count = count + 2
-                if field.type.need_serialize:
+                if field.type.c_need_serialize:
                     # _serialize() keeps track of padding automatically
                     count -= 1
     dimension = count + 2
@@ -2075,7 +2075,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
     _c('    struct iovec xcb_parts[%d];', dimension)
     _c('    %s xcb_ret;', func_cookie)
     _c('    %s xcb_out;', self.c_type)
-    if self.var_followed_by_fixed_fields:
+    if self.c_var_followed_by_fixed_fields:
         _c('    /* in the protocol description, variable size fields are followed by fixed size fields */')
         _c('    void *xcb_aux = 0;')
 
@@ -2117,7 +2117,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
     free_calls = []
 
     _c('    ')
-    if not self.var_followed_by_fixed_fields:
+    if not self.c_var_followed_by_fixed_fields:
         _c('    xcb_parts[2].iov_base = (char *) &xcb_out;')
         _c('    xcb_parts[2].iov_len = sizeof(xcb_out);')
         _c('    xcb_parts[3].iov_base = 0;')
@@ -2129,7 +2129,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
             if not field.type.fixed_size():
                 _c('    /* %s %s */', field.type.c_type, field.c_field_name)
                 # default: simple cast to char *
-                if not field.type.need_serialize and not field.type.need_sizeof:
+                if not field.type.c_need_serialize and not field.type.c_need_sizeof:
                     _c('    xcb_parts[%d].iov_base = (char *) %s;', count, field.c_field_name)
                     if field.type.is_list:
                         if field.type.member.fixed_size():
@@ -2169,13 +2169,13 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
                         _c('      %s (%s);', func_name, serialize_args)
 
                 count += 1
-                if not (field.type.need_serialize or field.type.need_sizeof):
+                if not (field.type.c_need_serialize or field.type.c_need_sizeof):
                     # the _serialize() function keeps track of padding automatically
                     _c('    xcb_parts[%d].iov_base = 0;', count)
                     _c('    xcb_parts[%d].iov_len = -xcb_parts[%d].iov_len & 3;', count, count-1)
                     count += 1
 
-    # elif self.var_followed_by_fixed_fields:
+    # elif self.c_var_followed_by_fixed_fields:
     else:
         _c('    xcb_parts[2].iov_base = (char *) &xcb_out;')
         # request header: opcodes + length
@@ -2219,12 +2219,12 @@ def _c_reply(self, name):
                 # three cases: 1. field with special case
                 #              2. container that contains special case field
                 #              3. list with special case elements
-                if field.type.var_followed_by_fixed_fields:
+                if field.type.c_var_followed_by_fixed_fields:
                     unserialize_fields.append(field)
                 elif field.type.is_container:
                     unserialize_fields += look_for_special_cases(field.type)
                 elif field.type.is_list:
-                    if field.type.member.var_followed_by_fixed_fields:
+                    if field.type.member.c_var_followed_by_fixed_fields:
                         unserialize_fields.append(field)
                     if field.type.member.is_container:
                         unserialize_fields += look_for_special_cases(field.type.member)
@@ -2401,7 +2401,7 @@ def _man_request(self, name, cookie_type, void, aux):
         c_pointer = field.c_pointer
         if c_pointer == ' ':
             c_pointer = ''
-        if field.type.need_serialize and not aux:
+        if field.type.c_need_serialize and not aux:
             c_field_const_type = "const void"
             c_pointer = '*'
         comma = ', ' if count else ');'
@@ -2905,7 +2905,7 @@ def c_request(self, name):
         has_fds = _c_reply_has_fds(self.reply)
         _c_request_helper(self, name, self.c_cookie_type, False, True, False, has_fds)
         _c_request_helper(self, name, self.c_cookie_type, False, False, False, has_fds)
-        if self.need_aux:
+        if self.c_need_aux:
             _c_request_helper(self, name, self.c_cookie_type, False, True, True, has_fds)
             _c_request_helper(self, name, self.c_cookie_type, False, False, True, has_fds)
         # Reply accessors
@@ -2917,7 +2917,7 @@ def c_request(self, name):
         # Request prototypes
         _c_request_helper(self, name, 'xcb_void_cookie_t', True, False)
         _c_request_helper(self, name, 'xcb_void_cookie_t', True, True)
-        if self.need_aux:
+        if self.c_need_aux:
             _c_request_helper(self, name, 'xcb_void_cookie_t', True, False, True)
             _c_request_helper(self, name, 'xcb_void_cookie_t', True, True, True)
 
