@@ -3044,8 +3044,6 @@ except OSError as e:
     if e.errno != errno.EEXIST:
         raise
 
-today = time.strftime('%Y-%m-%d', time.gmtime(os.path.getmtime(args[0])))
-
 # Parse the xml header
 module = Module(args[0], output)
 
