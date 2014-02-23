@@ -2716,7 +2716,7 @@ def _man_request(self, name, cookie_type, void, aux):
                 (cookie_type, self.c_reply_name, base_func_name, section))
     f.write('.SH ERRORS\n')
     if hasattr(self, "doc") and self.doc:
-        for errtype, errtext in self.doc.errors.items():
+        for errtype, errtext in sorted(self.doc.errors.items()):
             f.write('.IP \\fI%s\\fP 1i\n' % (_t(('xcb', errtype, 'error'))))
             errtext = re.sub(r'`([^`]+)`', r'\\fI\1\\fP', errtext)
             f.write('%s\n' % (errtext))
@@ -2734,7 +2734,7 @@ def _man_request(self, name, cookie_type, void, aux):
         see = ['.BR %s (%s)' % ('xcb-requests', section)]
         if self.doc.example:
             see.append('.BR %s (%s)' % ('xcb-examples', section))
-        for seename, seetype in self.doc.see.items():
+        for seename, seetype in sorted(self.doc.see.items()):
             if seetype == 'program':
                 see.append('.BR %s (1)' % seename)
             elif seetype == 'event':
@@ -2864,7 +2864,7 @@ def _man_event(self, name):
         see = ['.BR %s (%s)' % ('xcb_generic_event_t', section)]
         if self.doc.example:
             see.append('.BR %s (%s)' % ('xcb-examples', section))
-        for seename, seetype in self.doc.see.items():
+        for seename, seetype in sorted(self.doc.see.items()):
             if seetype == 'program':
                 see.append('.BR %s (1)' % seename)
             elif seetype == 'event':
