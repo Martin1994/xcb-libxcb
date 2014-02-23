@@ -202,7 +202,7 @@ def c_open(self):
         _h('')
         _h('#define XCB_%s_MAJOR_VERSION %s', _ns.ext_name.upper(), _ns.major_version)
         _h('#define XCB_%s_MINOR_VERSION %s', _ns.ext_name.upper(), _ns.minor_version)
-        _h('  ') #XXX
+        _h('') #XXX
         _h('extern xcb_extension_t %s;', _ns.c_ext_global_name)
 
         _c('')
@@ -1916,7 +1916,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
             _h(' * No description yet')
     else:
         _h(' * Delivers a request to the X server.')
-    _h(' * ')
+    _h(' *')
     if checked:
         _h(' * This form can be used only if the request will not cause')
         _h(' * a reply to be generated. Any returned error will be')
@@ -2139,7 +2139,7 @@ def _c_reply(self, name):
     _h(' * @param e      The xcb_generic_error_t supplied')
     _h(' *')
     _h(' * Returns the reply of the request asked by')
-    _h(' * ')
+    _h(' *')
     _h(' * The parameter @p e supplied to this function must be NULL if')
     _h(' * %s(). is used.', self.c_unchecked_name)
     _h(' * Otherwise, it stores the error if any.')
@@ -2203,7 +2203,7 @@ def _c_reply_fds(self, name):
     _h(' * @param reply  The reply')
     _h(' *')
     _h(' * Returns the array of reply fds of the request asked by')
-    _h(' * ')
+    _h(' *')
     _h(' * The returned value must be freed by the caller using free().')
     _h(' */')
     _c('')
