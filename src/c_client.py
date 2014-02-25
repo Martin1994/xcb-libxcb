@@ -1969,7 +1969,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
     _c('        /* opcode */ %s,', self.c_request_name.upper())
     _c('        /* isvoid */ %d', 1 if void else 0)
     _c('    };')
-    _c('    ')
+    _c('')
 
     _c('    struct iovec xcb_parts[%d];', dimension)
     _c('    %s xcb_ret;', func_cookie)
@@ -1986,7 +1986,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
         _c('    unsigned int i;')
         _c('    unsigned int xcb_tmp_len;')
         _c('    char *xcb_tmp;')
-    _c('    ')
+    _c('')
     # simple request call tracing
 #    _c('    printf("in function %s\\n");' % func_name)
 
@@ -2015,7 +2015,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
     # calls in order to free dyn. all. memory
     free_calls = []
 
-    _c('    ')
+    _c('')
     if not self.c_var_followed_by_fixed_fields:
         _c('    xcb_parts[2].iov_base = (char *) &xcb_out;')
         _c('    xcb_parts[2].iov_len = sizeof(xcb_out);')
@@ -2056,7 +2056,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
                     idx = serial_fields.index(field)
                     aux_var = '&xcb_aux%d' % idx
                     context = 'serialize' if aux else 'sizeof'
-                    _c('    xcb_parts[%d].iov_len = ', count)
+                    _c('    xcb_parts[%d].iov_len =', count)
                     if aux:
                         serialize_args = get_serialize_args(field.type, aux_var, field.c_field_name, context)
                         _c('      %s (%s);', field.type.c_serialize_name, serialize_args)
@@ -2088,7 +2088,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
         free_calls.append('    free(xcb_aux);')
         # no padding necessary - _serialize() keeps track of padding automatically
 
-    _c('    ')
+    _c('')
     for field in param_fields:
         if field.isfd:
             _c('    xcb_send_fd(c, %s);', field.c_field_name)
