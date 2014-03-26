@@ -56,6 +56,11 @@ m4_if(xcb_defopt, [auto], [
 # This extension has a default value of "auto" and depends on the value of $2
 if test "x$BUILD_[]UP" = "xauto" ; then
     BUILD_[]UP=$2
+fi
+if test "x$BUILD_[]UP" = "xyes" ; then
+    if test "x$2" = "xno" ; then
+      AC_MSG_ERROR([Extension []UP requested, but dependencies are not met])
+    fi
 fi])
 
 m4_undefine([xcb_defopt])dnl
