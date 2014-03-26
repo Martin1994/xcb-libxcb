@@ -90,14 +90,8 @@ AC_HEADER_STDC
 AC_SEARCH_LIBS(getaddrinfo, socket)
 AC_SEARCH_LIBS(connect, socket)
 
-AC_ARG_ENABLE(sendfds, AS_HELP_STRING([--disable-sendfds], [Support FD passing (default: auto)]),
-              [sendfds=$enableval], [sendfds=auto])
-
-case x$sendfds in
-xauto)
-        AC_SEARCH_LIBS(sendmsg, socket, [sendfds="yes"], [sendfds="no"])
-        ;;
-esac
+# Find support for sending a message from a socket
+AC_SEARCH_LIBS(sendmsg, socket, [have_sendmsg="yes"], [have_sendmsg="no"])
 
 # XPG4v2/UNIX95 added msg_control - check to see if we need to define
 # _XOPEN_SOURCE to get it (such as on Solaris)
@@ -126,14 +120,14 @@ if test "x$ac_cv_member_struct_msghdr_msg_control" = xno; then
     AC_CHECK_MEMBER([struct msghdr.msg_control],
                     [AC_DEFINE([_XOPEN_SOURCE], [500],
                        [Defined if needed to expose struct msghdr.msg_control])
-                    ], [sendfds="no"], [
+                    ], [have_sendmsg="no"], [
 #define _XOPEN_SOURCE 500
 AC_INCLUDES_DEFAULT
 #include <sys/socket.h>
                      ])
 fi
 
-case x$sendfds in
+case x$have_sendmsg in
 xyes)
         AC_DEFINE([HAVE_SENDMSG],1,[Define if your platform supports sendmsg])
         ;;
@@ -216,7 +210,7 @@ XCB_EXTENSION(Composite, yes)
 XCB_EXTENSION(Damage, yes)
 XCB_EXTENSION(DPMS, yes)
 XCB_EXTENSION(DRI2, yes)
-XCB_EXTENSION(DRI3, $sendfds)
+XCB_EXTENSION(DRI3, $have_sendmsg)
 XCB_EXTENSION(GLX, yes)
 XCB_EXTENSION(Present, yes)
 XCB_EXTENSION(RandR, yes)
@@ -300,7 +294,7 @@ echo "  Package: ${PACKAGE_NAME} ${PACKAGE_VERSION}"
 echo ""
 echo "  Configuration"
 echo "    XDM support.........: ${have_xdmcp}"
-echo "    sendmsg fd passing..: ${sendfds}"
+echo "    sendmsg fd passing..: ${have_sendmsg}"
 echo "    Build unit tests....: ${HAVE_CHECK}"
 echo "      with html results.: ${HTML_CHECK_RESULT}"
 echo "    XCB buffer size.....: ${xcb_queue_buffer_size}"
