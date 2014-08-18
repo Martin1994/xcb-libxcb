@@ -288,7 +288,7 @@ static int write_vec(xcb_connection_t *c, struct iovec **vector, int *count)
 
 const xcb_setup_t *xcb_get_setup(xcb_connection_t *c)
 {
-    if(c->has_error)
+    if(is_static_error_conn(c))
         return 0;
     /* doesn't need locking because it's never written to. */
     return c->setup;
@@ -296,7 +296,7 @@ const xcb_setup_t *xcb_get_setup(xcb_connection_t *c)
 
 int xcb_get_file_descriptor(xcb_connection_t *c)
 {
-    if(c->has_error)
+    if(is_static_error_conn(c))
         return -1;
     /* doesn't need locking because it's never written to. */
     return c->fd;
