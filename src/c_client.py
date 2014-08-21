@@ -358,7 +358,8 @@ def _c_type_setup(self, name, postfix):
                 field.c_pointer = '*'
                 field.c_field_const_type = 'const ' + field.c_field_type
                 self.c_need_aux = True
-            elif not field.type.fixed_size() and not field.type.is_case_or_bitcase:
+
+            if not field.type.fixed_size() and not field.type.is_case_or_bitcase:
                 self.c_need_sizeof = True
 
             field.c_iterator_type = _t(field.field_type + ('iterator',))      # xcb_fieldtype_iterator_t
@@ -770,6 +771,10 @@ def _c_serialize_helper_switch_field(context, self, field, c_switch_variable, pr
     elif context in ('unserialize', 'unpack'):
         length = "%s(xcb_tmp, %s&%s%s)" % (field.type.c_unpack_name,
                                            c_field_names, prefix_str, field.c_field_name)
+    elif 'sizeof' == context:
+        # remove trailing ", " from c_field_names because it will be used at end of arglist
+        my_c_field_names = c_field_names[:-2]
+        length = "%s(xcb_tmp, %s)" % (field.type.c_sizeof_name, my_c_field_names)
 
     return length
 # _c_serialize_helper_switch_field()
@@ -1046,7 +1051,12 @@ def _c_serialize_helper_fields(context, self,
             code_lines.append('%s    xcb_parts_idx++;' % space)
             count += 1
 
-        code_lines.append('%s    xcb_align_to = ALIGNOF(%s);' % (space, 'char' if field.c_field_type == 'void' else field.c_field_type))
+        code_lines.append(
+            '%s    xcb_align_to = ALIGNOF(%s);'
+             % (space,
+                 'char'
+                  if field.c_field_type == 'void' or field.type.is_switch
+                  else field.c_field_type))
 
         need_padding = True
         if self.c_var_followed_by_fixed_fields:
