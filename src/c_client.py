@@ -1804,7 +1804,7 @@ def _c_complex(self, force_packed = False):
         for b in self.bitcases:
             space = ''
             if b.type.has_name:
-                _h('    struct _%s {', b.c_field_name)
+                _h('    struct {')
                 space = '    '
             for field in b.type.fields:
                 _c_complex_field(self, field, space)
