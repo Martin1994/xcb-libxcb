@@ -1590,12 +1590,7 @@ def _c_accessor_get_length(expr, field_mapping=None):
         if field_mapping is not None:
             lenfield_name = field_mapping[lenfield_name][0]
 
-    if expr.lenfield is not None and expr.lenfield.prev_varsized_field is not None:
-        # special case: variable and fixed size fields are intermixed
-        # if the lenfield is among the fixed size fields, there is no need
-        # to call a special accessor function like <expr.lenfield.c_accessor_name + '(' + prefix + ')'>
-        return field_mapping(expr.lenfield_name)
-    elif expr.lenfield_name is not None:
+    if expr.lenfield_name is not None:
         return lenfield_name
     else:
         return str(expr.nmemb)
