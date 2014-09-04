@@ -3077,6 +3077,10 @@ def c_event(self, name):
 
     if self.name == name:
         _c_type_setup(self, name, ('event',))
+        # generate accessors
+        # (needed for fields after var-sized fields, for lists with var-sized elements,
+        # switches, ...)
+        _c_accessors(self, name, name)
     else:
         # no type-setup needed for eventcopies
         # (the type-setup of an eventcopy would overwrite members of the original
