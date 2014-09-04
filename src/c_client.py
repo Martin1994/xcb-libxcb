@@ -3075,7 +3075,14 @@ def c_event(self, name):
                 force_packed = any(f.type.size == 8 and f.type.is_simple for f in self.fields[(idx+1):])
                 break
 
-    _c_type_setup(self, name, ('event',))
+    if self.name == name:
+        _c_type_setup(self, name, ('event',))
+    else:
+        # no type-setup needed for eventcopies
+        # (the type-setup of an eventcopy would overwrite members of the original
+        # event, and it would create sizeof-etc funtions which
+        # called undefined accessor functions)
+        pass
 
     # Opcode define
     _c_opcode(name, self.opcodes[name])
@@ -3087,6 +3094,22 @@ def c_event(self, name):
         # Typedef
         _h('')
         _h('typedef %s %s;', _t(self.name + ('event',)), _t(name + ('event',)))
+
+        # Create sizeof-function for eventcopies for compatibility reasons
+        if self.c_need_sizeof:
+            _h_setlevel(1)
+            _c_setlevel(1)
+            _h('')
+            _h('int')
+            _h('%s (const void  *_buffer  /**< */);', _n(name + ('sizeof',)))
+            _c('')
+            _c('int')
+            _c('%s (const void  *_buffer  /**< */)', _n(name + ('sizeof',)))
+            _c('{');
+            _c('    return %s(_buffer);', _n(self.name + ('sizeof',)))
+            _c('}');
+            _h_setlevel(0)
+            _c_setlevel(0)
 
     _man_event(self, name)
 
