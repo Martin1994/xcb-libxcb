@@ -869,9 +869,13 @@ def _c_serialize_helper_fields_fixed_size(context, self, field,
             # total padding = sizeof(pad0) * nmemb
             length += " * %d" % field.type.nmemb
 
-        if field.type.is_list:
-            # no such case in the protocol, cannot be tested and therefore ignored for now
-            raise Exception('list with fixed number of elemens unhandled in _unserialize()')
+        elif field.type.is_list:
+            # list with fixed number of elements
+            # length of array = sizeof(arrayElementType) * nmemb
+            length += " * %d" % field.type.nmemb
+            # use memcpy because C cannot assign whole arrays with operator=
+            value = '    memcpy(%s, xcb_tmp, %s);' % (abs_field_name, length)
+
 
     elif 'serialize' == context:
         value = '    xcb_parts[xcb_parts_idx].iov_base = (char *) '
