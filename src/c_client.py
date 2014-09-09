@@ -657,9 +657,15 @@ def get_serialize_params(context, self, buffer_var='_buffer', aux_var='_aux'):
     return (param_fields, wire_fields, params)
 # get_serialize_params()
 
-def _c_serialize_helper_insert_padding(context, code_lines, space, postpone):
+def _c_serialize_helper_insert_padding(context, code_lines, space, postpone, is_case_or_bitcase):
     code_lines.append('%s    /* insert padding */' % space)
-    code_lines.append('%s    xcb_pad = -xcb_block_len & (xcb_align_to - 1);' % space)
+    if is_case_or_bitcase:
+        code_lines.append(
+            '%s    xcb_pad = -(xcb_block_len + xcb_padding_offset) & (xcb_align_to - 1);'
+            % space)
+    else:
+        code_lines.append(
+            '%s    xcb_pad = -xcb_block_len & (xcb_align_to - 1);' % space)
 #    code_lines.append('%s    printf("automatically inserting padding: %%%%d\\n", xcb_pad);' % space)
     code_lines.append('%s    xcb_buffer_len += xcb_block_len + xcb_pad;' % space)
 
@@ -677,6 +683,8 @@ def _c_serialize_helper_insert_padding(context, code_lines, space, postpone):
         code_lines.append('%s    }' % space)
 
     code_lines.append('%s    xcb_block_len = 0;' % space)
+    if is_case_or_bitcase:
+        code_lines.append('%s    xcb_padding_offset = 0;' % space)
 
     # keep tracking of xcb_parts entries for serialize
     return 1
@@ -1005,13 +1013,15 @@ def _c_serialize_helper_fields(context, self,
                 # Variable length pad is <pad align= />
                 code_lines.append('%s    xcb_align_to = %d;' % (space, field.type.align))
                 count += _c_serialize_helper_insert_padding(context, code_lines, space,
-                                                        self.c_var_followed_by_fixed_fields)
+                                                            self.c_var_followed_by_fixed_fields,
+                                                            is_case_or_bitcase)
                 continue
             else:
                 # switch/bitcase: always calculate padding before and after variable sized fields
                 if need_padding or is_case_or_bitcase:
                     count += _c_serialize_helper_insert_padding(context, code_lines, space,
-                                                            self.c_var_followed_by_fixed_fields)
+                                                                self.c_var_followed_by_fixed_fields,
+                                                                is_case_or_bitcase)
 
                 value, length = _c_serialize_helper_fields_variable_size(context, self, field,
                                                                          code_lines, temp_vars,
@@ -1100,7 +1110,7 @@ def _c_serialize_helper(context, complex_type,
                                             code_lines, temp_vars,
                                             space, prefix, False)
     # "final padding"
-    count += _c_serialize_helper_insert_padding(context, code_lines, space, False)
+    count += _c_serialize_helper_insert_padding(context, code_lines, space, False, self.is_switch)
 
     return count
 # _c_serialize_helper()
@@ -1170,6 +1180,8 @@ def _c_serialize(context, self):
             _c('    char *xcb_out = *_buffer;')
             _c('    unsigned int xcb_buffer_len = 0;')
             _c('    unsigned int xcb_align_to = 0;')
+        if self.is_switch:
+            _c('    unsigned int xcb_padding_offset = ((size_t)xcb_out) & 7;')
         prefix = [('_aux', '->', self)]
         aux_ptr = 'xcb_out'
 
@@ -1193,6 +1205,8 @@ def _c_serialize(context, self):
         _c('    unsigned int xcb_block_len = 0;')
         _c('    unsigned int xcb_pad = 0;')
         _c('    unsigned int xcb_align_to = 0;')
+        if self.is_switch:
+            _c('    unsigned int xcb_padding_offset = ((size_t)_buffer) & 7;')
 
     elif 'sizeof' == context:
         param_names = [p[2] for p in params]
@@ -1210,6 +1224,8 @@ def _c_serialize(context, self):
         else:
             _c('    char *xcb_tmp = (char *)_buffer;')
             prefix = [('_aux', '->', self)]
+            if self.is_switch:
+                _c('    unsigned int xcb_padding_offset = 0;')
 
     count = _c_serialize_helper(context, self, code_lines, temp_vars, prefix=prefix)
     # update variable size fields (only important for context=='serialize'
