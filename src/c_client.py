@@ -918,7 +918,6 @@ def _c_serialize_helper_switch_field(context, self, field, c_switch_variable, pr
     handle switch by calling _serialize() or _unpack(), depending on context
     """
     # switch is handled by this function as a special case
-    param_fields, wire_fields, params = get_serialize_params(context, self)
     field_mapping = _c_helper_field_mapping(self, prefix)
     prefix_str = _c_helper_fieldaccess_expr(prefix)
 
