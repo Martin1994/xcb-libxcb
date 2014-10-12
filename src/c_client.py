@@ -526,7 +526,6 @@ def _c_type_setup(self, name, postfix):
                 if not module.namespace.is_ext or self.name[:2] == module.namespace.prefix:
                     finished_sizeof.append(self.c_sizeof_name)
                     _c_serialize('sizeof', self)
-# _c_type_setup()
 
 # Functions for querying field properties
 def _c_field_needs_list_accessor(field):
@@ -587,7 +586,6 @@ def _c_helper_fieldaccess_expr(prefix, field=None):
             prefix_str += last_sep + _cpp(field.field_name)
 
     return prefix_str
-# _c_absolute_name
 
 def _c_helper_field_mapping(complex_type, prefix, flat=False):
     """
@@ -623,7 +621,6 @@ def _c_helper_field_mapping(complex_type, prefix, flat=False):
                 all_fields.update(_c_helper_field_mapping(f.type, new_prefix, flat))
 
     return all_fields
-# _c_field_mapping()
 
 def _c_helper_resolve_field_names (prefix):
     """
@@ -644,7 +641,6 @@ def _c_helper_resolve_field_names (prefix):
         all_fields.update(_c_helper_field_mapping(obj, tmp_prefix, flat=True))
 
     return all_fields
-# _c_helper_resolve_field_names
 
 def get_expr_fields(self):
     """
@@ -695,7 +691,6 @@ def get_expr_fields(self):
 
     resolved_fields = [all_fields[n][1] for n in resolved_fields_names]
     return resolved_fields
-# get_expr_fields()
 
 def resolve_expr_fields(complex_obj):
     """
@@ -718,7 +713,6 @@ def resolve_expr_fields(complex_obj):
         if e not in all_fields and e not in unresolved:
             unresolved.append(e)
     return unresolved
-# resolve_expr_fields()
 
 def resolve_expr_fields_list(self, parents):
     """
@@ -822,7 +816,6 @@ def get_serialize_params(context, self, buffer_var='_buffer', aux_var='_aux'):
                 add_param(params, (p.c_field_const_type, '*', p.c_field_name))
 
     return (param_fields, wire_fields, params)
-# get_serialize_params()
 
 def _c_serialize_helper_insert_padding(context, code_lines, space, postpone, is_case_or_bitcase):
     code_lines.append('%s    /* insert padding */' % space)
@@ -855,7 +848,6 @@ def _c_serialize_helper_insert_padding(context, code_lines, space, postpone, is_
 
     # keep tracking of xcb_parts entries for serialize
     return 1
-# _c_serialize_helper_insert_padding()
 
 def _c_serialize_helper_switch(context, self, complex_name,
                                code_lines, temp_vars,
@@ -908,7 +900,6 @@ def _c_serialize_helper_switch(context, self, complex_name,
 #        code_lines.append('%s    xcb_buffer_len += xcb_block_len + xcb_pad;' % space)
 
     return count
-# _c_serialize_helper_switch
 
 def _c_serialize_helper_switch_field(context, self, field, c_switch_variable, prefix):
     """
@@ -951,7 +942,6 @@ def _c_serialize_helper_switch_field(context, self, field, c_switch_variable, pr
         length = "%s(xcb_tmp, %s)" % (field.type.c_sizeof_name, my_c_field_names)
 
     return length
-# _c_serialize_helper_switch_field()
 
 def _c_get_additional_type_params(type):
     """
@@ -1036,7 +1026,6 @@ def _c_serialize_helper_list_field(context, self, field,
             code_lines.append('%s    xcb_block_len = xcb_parts[xcb_parts_idx].iov_len;' % space)
 
     return length
-# _c_serialize_helper_list_field()
 
 def _c_serialize_helper_fields_fixed_size(context, self, field,
                                           code_lines, temp_vars,
@@ -1106,7 +1095,6 @@ def _c_serialize_helper_fields_fixed_size(context, self, field,
                 length = '%d' % field.type.nmemb
 
     return (value, length)
-# _c_serialize_helper_fields_fixed_size()
 
 def _c_serialize_helper_fields_variable_size(context, self, field,
                                              code_lines, temp_vars,
@@ -1159,7 +1147,6 @@ def _c_serialize_helper_fields_variable_size(context, self, field,
         length = "%s(%s)" % (field.type.c_sizeof_name, var_field_name)
 
     return (value, length)
-# _c_serialize_helper_fields_variable_size
 
 def _c_serialize_helper_fields(context, self,
                                code_lines, temp_vars,
@@ -1261,7 +1248,6 @@ def _c_serialize_helper_fields(context, self,
     _c_pre.pop_indent()
 
     return count
-# _c_serialize_helper_fields()
 
 def _c_serialize_helper(context, complex_type,
                         code_lines, temp_vars,
@@ -1301,7 +1287,6 @@ def _c_serialize_helper(context, complex_type,
     count += _c_serialize_helper_insert_padding(context, code_lines, space, False, self.is_switch)
 
     return count
-# _c_serialize_helper()
 
 def _c_serialize(context, self):
     """
@@ -1509,7 +1494,6 @@ def _c_serialize(context, self):
     _c('')
     _c('    return xcb_buffer_len;')
     _c('}')
-# _c_serialize()
 
 def _c_iterator_get_end(field, accum):
     '''
