@@ -2280,10 +2280,10 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
 
     _c('{')
     _c('    static const xcb_protocol_request_t xcb_req = {')
-    _c('        /* count */ %d,', count)
-    _c('        /* ext */ %s,', func_ext_global)
-    _c('        /* opcode */ %s,', self.c_request_name.upper())
-    _c('        /* isvoid */ %d', 1 if void else 0)
+    _c('        .count = %d,', count)
+    _c('        .ext = %s,', func_ext_global)
+    _c('        .opcode = %s,', self.c_request_name.upper())
+    _c('        .isvoid = %d', 1 if void else 0)
     _c('    };')
     _c('')
 
