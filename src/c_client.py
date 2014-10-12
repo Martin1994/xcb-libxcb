@@ -1338,8 +1338,7 @@ def _c_serialize(context, self):
         if not field.type.fixed_size() or self.is_switch:
             variable_size_fields += 1
     # determine maxtypelen
-    for p in params:
-        maxtypelen = max(maxtypelen, len(p[0]) + len(p[1]))
+    maxtypelen = max(len(p[0]) + len(p[1]) for p in params)
 
     # write to .c/.h
     indent = ' '*(len(func_name)+2)
