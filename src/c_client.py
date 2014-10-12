@@ -2497,10 +2497,7 @@ def _c_reply(self, name):
     _c('}')
 
 def _c_reply_has_fds(self):
-    for field in self.fields:
-        if field.isfd:
-            return True
-    return False
+    return any(field.isfd for field in self.fields)
 
 def _c_reply_fds(self, name):
     '''
