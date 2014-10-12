@@ -603,7 +603,7 @@ def _c_helper_field_mapping(complex_type, prefix, flat=False):
             else:
                 bitcase_prefix = prefix
 
-            if (True==flat and not b.type.has_name) or False==flat:
+            if (flat and not b.type.has_name) or not flat:
                 all_fields.update(_c_helper_field_mapping(b.type, bitcase_prefix, flat))
     else:
         for f in complex_type.fields:
@@ -612,7 +612,7 @@ def _c_helper_field_mapping(complex_type, prefix, flat=False):
                 raise Exception("field name %s has been registered before" % f.field_name)
 
             all_fields[f.field_name] = (fname, f)
-            if f.type.is_container and flat==False:
+            if f.type.is_container and not flat:
                 if f.type.is_case_or_bitcase and not f.type.has_name:
                     new_prefix = prefix
                 elif f.type.is_switch and len(f.type.parents)>1:
