@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 from __future__ import print_function
-from functools import reduce
 import getopt
 import os
 import sys
@@ -1047,7 +1046,7 @@ def _c_serialize_helper_fields_fixed_size(context, self, field,
         code_lines.append('%s    /* %s.%s */' % (space, self.c_type, field.c_field_name))
     else:
         scoped_name = [p[2].c_type if idx==0 else p[0] for idx, p in enumerate(prefix)]
-        typename = reduce(lambda x,y: "%s.%s" % (x, y), scoped_name)
+        typename = ".".join(scoped_name)
         code_lines.append('%s    /* %s.%s */' % (space, typename, field.c_field_name))
 
     abs_field_name = _c_helper_fieldaccess_expr(prefix, field)
@@ -1403,13 +1402,13 @@ def _c_serialize(context, self):
         if self.is_switch:
             # switch: call _unpack()
             _c('    %s _aux;', self.c_type)
-            _c('    return %s(%s, &_aux);', self.c_unpack_name, reduce(lambda x,y: "%s, %s" % (x, y), param_names))
+            _c('    return %s(%s, &_aux);', self.c_unpack_name, ", ".join(param_names))
             _c('}')
             _c_pre.redirect_end()
             return
         elif self.c_var_followed_by_fixed_fields:
             # special case: call _unserialize()
-            _c('    return %s(%s, NULL);', self.c_unserialize_name, reduce(lambda x,y: "%s, %s" % (x, y), param_names))
+            _c('    return %s(%s, NULL);', self.c_unserialize_name, ", ".join(param_names))
             _c('}')
             _c_pre.redirect_end()
             return
@@ -2343,7 +2342,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
         serialize_args = get_serialize_params(context, type_obj,
                                               c_field_name,
                                               aux_var)[2]
-        return reduce(lambda x,y: "%s, %s" % (x,y), [a[2] for a in serialize_args])
+        return ", ".join(a[2] for a in serialize_args)
 
     # calls in order to free dyn. all. memory
     free_calls = []
