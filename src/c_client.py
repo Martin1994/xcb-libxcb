@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 from functools import reduce
 import getopt
 import os
@@ -2665,8 +2666,7 @@ def _man_request(self, name, cookie_type, void, aux):
                 for field in b.type.fields:
                     _c_complex_field(self, field, space)
                 if b.type.has_name:
-                    print >> sys.stderr, 'ERROR: New unhandled documentation case'
-                    pass
+                    print('ERROR: New unhandled documentation case\n', file=sys.stderr)
 
         f.write('} \\fB%s\\fP;\n' % self.reply.c_type)
         f.write('.fi\n')
@@ -2998,7 +2998,7 @@ def _man_event(self, name):
             spacing = ' ' * (maxtypelen - len(field.c_field_type))
             f.write('%s    %s%s \\fI%s\\fP%s;\n' % (space, field.c_field_type, spacing, field.c_field_name, field.c_subscript))
         else:
-            print >> sys.stderr, 'ERROR: New unhandled documentation case'
+            print('ERROR: New unhandled documentation case', file=sys.stderr)
 
     if not self.is_switch:
         for field in struct_fields:
@@ -3011,7 +3011,7 @@ def _man_event(self, name):
             for field in b.type.fields:
                 _c_complex_field(self, field, space)
             if b.type.has_name:
-                print >> sys.stderr, 'ERROR: New unhandled documentation case'
+                print('ERROR: New unhandled documentation case', file=sys.stderr)
                 pass
 
     f.write('} \\fB%s\\fP;\n' % self.c_type)
