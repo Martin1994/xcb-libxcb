@@ -1833,8 +1833,7 @@ def _c_accessors_list(self, field):
         fields.update(_c_helper_field_mapping(toplevel_switch, [('S', '->', toplevel_switch)], flat=True))
 
         # initialize prefix for everything "below" S
-        prefix_str = '/* %s */ S' % toplevel_switch.name[-1]
-        prefix = [(prefix_str, '->', toplevel_switch)]
+        prefix = [('S', '->', toplevel_switch)]
 
         # look for fields in the remaining containers
         for p in parents[2:] + [self]:
@@ -2724,8 +2723,7 @@ def _man_request(self, name, void, aux):
                 fields.update(_c_helper_field_mapping(toplevel_switch, [('S', '->', toplevel_switch)], flat=True))
 
                 # initialize prefix for everything "below" S
-                prefix_str = '/* %s */ S' % toplevel_switch.name[-1]
-                prefix = [(prefix_str, '->', toplevel_switch)]
+                prefix = [('S', '->', toplevel_switch)]
 
                 # look for fields in the remaining containers
                 for p in parents[2:] + [self]:
