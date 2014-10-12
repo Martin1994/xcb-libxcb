@@ -1,12 +1,9 @@
 #!/usr/bin/env python
-from xml.etree.cElementTree import *
-from os.path import basename
 from functools import reduce
 import getopt
 import os
 import sys
 import errno
-import time
 import re
 
 # Jump to the bottom of this file for the main routine
@@ -1670,7 +1667,6 @@ def _c_accessor_get_expr(expr, field_mapping):
         return c_name
     elif expr.op == 'sumof':
         # locate the referenced list object
-        list_obj = expr.lenfield_type
         field = None
         for f in expr.lenfield_parent.fields:
             if f.field_name == expr.lenfield_name:
@@ -2069,10 +2065,8 @@ def _c_complex(self, force_packed = False):
     struct_fields = []
     maxtypelen = 0
 
-    varfield = None
     for field in self.fields:
         if not field.type.fixed_size() and not self.is_switch and not self.is_union:
-            varfield = field.c_field_name
             continue
         if field.wire:
             struct_fields.append(field)
@@ -2377,7 +2371,6 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
                         else:
                             list_length = _c_accessor_get_expr(field.type.expr, None)
 
-                            length = ''
                             _c("    xcb_parts[%d].iov_len = 0;" % count)
                             _c("    xcb_tmp = (char *)%s;", field.c_field_name)
                             _c("    for(i=0; i<%s; i++) {" % list_length)
@@ -2742,8 +2735,6 @@ def _man_request(self, name, cookie_type, void, aux):
             # 'R': parents[0] is always the 'toplevel' container type
             params.append(('const %s *\\fIreply\\fP' % parents[0].c_type, parents[0]))
             fields.update(_c_helper_field_mapping(parents[0], [('R', '->', parents[0])], flat=True))
-            # auxiliary object for 'R' parameters
-            R_obj = parents[0]
 
             if switch_obj is not None:
                 # now look where the fields are defined that are needed to evaluate
@@ -2766,9 +2757,6 @@ def _man_request(self, name, cookie_type, void, aux):
                     if not p.is_case_or_bitcase or (p.is_case_or_bitcase and p.has_name):
                         prefix.append((p.name[-1], '.', p))
                     fields.update(_c_helper_field_mapping(p, prefix, flat=True))
-
-                # auxiliary object for 'S' parameter
-                S_obj = parents[1]
 
             if list.member.fixed_size():
                 idx = 1 if switch_obj is not None else 0
