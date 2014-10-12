@@ -3082,11 +3082,11 @@ def c_request(self, name):
         _c_complex(self.reply)
         # Request prototypes
         has_fds = _c_reply_has_fds(self.reply)
-        _c_request_helper(self, name, self.c_cookie_type, False, True, False, has_fds)
-        _c_request_helper(self, name, self.c_cookie_type, False, False, False, has_fds)
+        _c_request_helper(self, name, self.c_cookie_type, void=False, regular=True, aux=False, reply_fds=has_fds)
+        _c_request_helper(self, name, self.c_cookie_type, void=False, regular=False, aux=False, reply_fds=has_fds)
         if self.c_need_aux:
-            _c_request_helper(self, name, self.c_cookie_type, False, True, True, has_fds)
-            _c_request_helper(self, name, self.c_cookie_type, False, False, True, has_fds)
+            _c_request_helper(self, name, self.c_cookie_type, void=False, regular=True, aux=True, reply_fs=has_fds)
+            _c_request_helper(self, name, self.c_cookie_type, void=False, regular=False, aux=True, reply_fs=has_fds)
         # Reply accessors
         _c_accessors(self.reply, name + ('reply',), name)
         _c_reply(self, name)
@@ -3094,17 +3094,17 @@ def c_request(self, name):
             _c_reply_fds(self, name)
     else:
         # Request prototypes
-        _c_request_helper(self, name, 'xcb_void_cookie_t', True, False)
-        _c_request_helper(self, name, 'xcb_void_cookie_t', True, True)
+        _c_request_helper(self, name, 'xcb_void_cookie_t', void=True, regular=False)
+        _c_request_helper(self, name, 'xcb_void_cookie_t', void=True, regular=True)
         if self.c_need_aux:
-            _c_request_helper(self, name, 'xcb_void_cookie_t', True, False, True)
-            _c_request_helper(self, name, 'xcb_void_cookie_t', True, True, True)
+            _c_request_helper(self, name, 'xcb_void_cookie_t', void=True, regular=False, aux=True)
+            _c_request_helper(self, name, 'xcb_void_cookie_t', void=True, regular=True, aux=True)
         _c_accessors(self, name, name)
 
     # We generate the manpage afterwards because _c_type_setup has been called.
     # TODO: what about aux helpers?
     cookie_type = self.c_cookie_type if self.reply else 'xcb_void_cookie_t'
-    _man_request(self, name, cookie_type, not self.reply, False)
+    _man_request(self, name, cookie_type, void=not self.reply, aux=False)
 
 def c_event(self, name):
     '''
