@@ -1808,14 +1808,13 @@ def _c_accessors_list(self, field):
     '''
 
     def get_align_pad(field):
-            prev = field.prev_varsized_field
-            prev_prev = field.prev_varsized_field.prev_varsized_field
+        prev = field.prev_varsized_field
+        prev_prev = field.prev_varsized_field.prev_varsized_field
 
-            if (prev.type.is_pad and prev.type.align > 0 and prev_prev is not None):
-                return (prev_prev, '((-prev.index) & (%d - 1))' % prev.type.align)
-            else:
-                return (prev, None)
-
+        if prev.type.is_pad and prev.type.align > 0 and prev_prev is not None:
+            return (prev_prev, '((-prev.index) & (%d - 1))' % prev.type.align)
+        else:
+            return (prev, None)
 
     list = field.type
     c_type = self.c_type
