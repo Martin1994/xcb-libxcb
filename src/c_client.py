@@ -826,7 +826,6 @@ def _c_serialize_helper_insert_padding(context, code_lines, space, postpone, is_
     else:
         code_lines.append(
             '%s    xcb_pad = -xcb_block_len & (xcb_align_to - 1);' % space)
-#    code_lines.append('%s    printf("automatically inserting padding: %%%%d\\n", xcb_pad);' % space)
     code_lines.append('%s    xcb_buffer_len += xcb_block_len + xcb_pad;' % space)
 
     if not postpone:
@@ -2303,8 +2302,6 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
         _c('    unsigned int xcb_tmp_len;')
         _c('    char *xcb_tmp;')
     _c('')
-    # simple request call tracing
-#    _c('    printf("in function %s\\n");' % func_name)
 
     # fixed size fields
     for field in wire_fields:
