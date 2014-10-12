@@ -2104,7 +2104,7 @@ def c_union(self, name):
     _c_complex(self)
     _c_iterator(self, name)
 
-def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_fds=False):
+def _c_request_helper(self, name, void, regular, aux=False, reply_fds=False):
     '''
     Declares a request function.
     '''
@@ -2242,7 +2242,7 @@ def _c_request_helper(self, name, cookie_type, void, regular, aux=False, reply_f
         _h(' * placed in the event queue.')
     _h(' */')
     _c('')
-    _hc('%s', cookie_type)
+    _hc('%s', func_cookie)
 
     spacing = ' ' * (maxtypelen - len('xcb_connection_t'))
     comma = ',' if len(param_fields) else ');'
@@ -2549,7 +2549,7 @@ def _c_cookie(self, name):
     _h('    unsigned int sequence; /**<  */')
     _h('} %s;', self.c_cookie_type)
 
-def _man_request(self, name, cookie_type, void, aux):
+def _man_request(self, name, void, aux):
     param_fields = [f for f in self.fields if f.visible]
 
     func_name = self.c_request_name if not aux else self.c_aux_name
@@ -2595,7 +2595,8 @@ def _man_request(self, name, cookie_type, void, aux):
     f.write('.SS Request function\n')
     f.write('.HP\n')
     base_func_name = self.c_request_name if not aux else self.c_aux_name
-    f.write('%s \\fB%s\\fP(xcb_connection_t\\ *\\fIconn\\fP, %s\n' % (cookie_type, base_func_name, prototype))
+    func_cookie = 'xcb_void_cookie_t' if void else self.c_cookie_type
+    f.write('%s \\fB%s\\fP(xcb_connection_t\\ *\\fIconn\\fP, %s\n' % (func_cookie, base_func_name, prototype))
     create_link('%s_%s' % (base_func_name, ('checked' if void else 'unchecked')))
     if not void:
         f.write('.PP\n')
@@ -2892,7 +2893,7 @@ def _man_request(self, name, cookie_type, void, aux):
                  'handle errors in the event loop instead, use '
                  '\\fI%s_unchecked\\fP. See \\fBxcb-requests(%s)\\fP for '
                  'details.\n') %
-                (cookie_type, self.c_reply_name, base_func_name, section))
+                (self.c_cookie_type, self.c_reply_name, base_func_name, section))
     f.write('.SH ERRORS\n')
     if hasattr(self, "doc") and self.doc:
         for errtype, errtext in sorted(self.doc.errors.items()):
@@ -3082,11 +3083,11 @@ def c_request(self, name):
         _c_complex(self.reply)
         # Request prototypes
         has_fds = _c_reply_has_fds(self.reply)
-        _c_request_helper(self, name, self.c_cookie_type, void=False, regular=True, aux=False, reply_fds=has_fds)
-        _c_request_helper(self, name, self.c_cookie_type, void=False, regular=False, aux=False, reply_fds=has_fds)
+        _c_request_helper(self, name, void=False, regular=True, aux=False, reply_fds=has_fds)
+        _c_request_helper(self, name, void=False, regular=False, aux=False, reply_fds=has_fds)
         if self.c_need_aux:
-            _c_request_helper(self, name, self.c_cookie_type, void=False, regular=True, aux=True, reply_fs=has_fds)
-            _c_request_helper(self, name, self.c_cookie_type, void=False, regular=False, aux=True, reply_fs=has_fds)
+            _c_request_helper(self, name, void=False, regular=True, aux=True, reply_fs=has_fds)
+            _c_request_helper(self, name, void=False, regular=False, aux=True, reply_fs=has_fds)
         # Reply accessors
         _c_accessors(self.reply, name + ('reply',), name)
         _c_reply(self, name)
@@ -3094,17 +3095,16 @@ def c_request(self, name):
             _c_reply_fds(self, name)
     else:
         # Request prototypes
-        _c_request_helper(self, name, 'xcb_void_cookie_t', void=True, regular=False)
-        _c_request_helper(self, name, 'xcb_void_cookie_t', void=True, regular=True)
+        _c_request_helper(self, name, void=True, regular=False)
+        _c_request_helper(self, name, void=True, regular=True)
         if self.c_need_aux:
-            _c_request_helper(self, name, 'xcb_void_cookie_t', void=True, regular=False, aux=True)
-            _c_request_helper(self, name, 'xcb_void_cookie_t', void=True, regular=True, aux=True)
+            _c_request_helper(self, name, void=True, regular=False, aux=True)
+            _c_request_helper(self, name, void=True, regular=True, aux=True)
         _c_accessors(self, name, name)
 
     # We generate the manpage afterwards because _c_type_setup has been called.
     # TODO: what about aux helpers?
-    cookie_type = self.c_cookie_type if self.reply else 'xcb_void_cookie_t'
-    _man_request(self, name, cookie_type, void=not self.reply, aux=False)
+    _man_request(self, name, void=not self.reply, aux=False)
 
 def c_event(self, name):
     '''
