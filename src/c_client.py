@@ -2047,9 +2047,7 @@ def _c_complex(self, force_packed = False):
     maxtypelen = 0
 
     for field in self.fields:
-        if not field.type.fixed_size() and not self.is_switch and not self.is_union:
-            continue
-        if field.wire:
+        if field.wire and (field.type.fixed_size() or self.is_switch or self.is_union):
             struct_fields.append(field)
 
     for field in struct_fields:
