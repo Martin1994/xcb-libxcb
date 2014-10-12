@@ -690,7 +690,7 @@ def get_expr_fields(self):
         prefix.append(('', '', self))
 
     all_fields = _c_helper_resolve_field_names (prefix)
-    resolved_fields_names = list(filter(lambda x: x in all_fields.keys(), unresolved_fields_names))
+    resolved_fields_names = [x for x in unresolved_fields_names if x in all_fields]
     if len(unresolved_fields_names) != len(resolved_fields_names):
         raise Exception("could not resolve all fields for %s" % self.name)
 
@@ -976,8 +976,8 @@ def _c_serialize_helper_list_field(context, self, field,
     param_names = [p[2] for p in params]
 
     expr_fields_names = [f.field_name for f in get_expr_fields(field.type)]
-    resolved = list(filter(lambda x: x in param_names, expr_fields_names))
-    unresolved = list(filter(lambda x: x not in param_names, expr_fields_names))
+    resolved = [x for x in expr_fields_names if x in param_names]
+    unresolved = [x for x in expr_fields_names if x not in param_names]
 
     field_mapping = {}
     for r in resolved:
@@ -990,8 +990,8 @@ def _c_serialize_helper_list_field(context, self, field,
                             field.c_field_name)
 
         field_mapping.update(_c_helper_resolve_field_names(prefix))
-        resolved += list(filter(lambda x: x in field_mapping, unresolved))
-        unresolved = list(filter(lambda x: x not in field_mapping, unresolved))
+        resolved += [x for x in unresolved if x in field_mapping]
+        unresolved = [x for x in unresolved if x not in field_mapping]
         if len(unresolved)>0:
             raise Exception('could not resolve the length fields required for list %s' % field.c_field_name)
 
@@ -1347,7 +1347,7 @@ def _c_serialize(context, self):
         param_str.append("%s%s%s  %s%s  /**< */" % (indent, typespec, spacing, pointerspec, field_name))
     # insert function name
     param_str[0] = "%s (%s" % (func_name, param_str[0].strip())
-    param_str = list(map(lambda x: "%s," % x, param_str))
+    param_str = ["%s," % x for x in param_str]
     for s in param_str[:-1]:
         _hc(s)
     _h("%s);" % param_str[-1].rstrip(','))
@@ -1436,7 +1436,7 @@ def _c_serialize(context, self):
         if not (self.is_switch or self.c_var_followed_by_fixed_fields):
 
             # look if we have to declare an '_aux' variable at all
-            if len(list(filter(lambda x: x.find('_aux')!=-1, code_lines)))>0:
+            if any('_aux' in x for x in code_lines):
                 if not self.c_var_followed_by_fixed_fields:
                     _c('    const %s *_aux = (%s *)_buffer;', self.c_type, self.c_type)
                 else:
