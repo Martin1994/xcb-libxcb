@@ -552,8 +552,17 @@ def _c_field_is_member_of_case_or_bitcase(field):
 def _c_helper_fieldaccess_expr(prefix, field=None):
     """
     turn prefix, which is a list of tuples (name, separator, Type obj) into a string
-    representing a valid name in C (based on the context)
-    if field is not None, append the field name as well
+    representing a valid field-access-expression in C (based on the context)
+    if field is not None, append access to the field as well.
+
+    "separator" is one of the C-operators "." or "->".
+
+    A field access expression can consist of the following components:
+    * struct/union member access from a value with the "."-operator
+    * struct/union member access from a pointer with "->"-operator
+    * function-call of an accessor function:
+      This is used when a xcb-field is not contained in a struct.
+      This can, e.g., happen for fields after var-sized fields, etc.
     """
     prefix_str = ''
     last_sep =''
