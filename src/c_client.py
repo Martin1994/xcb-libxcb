@@ -1628,9 +1628,31 @@ def _c_accessor_get_expr(expr, field_mapping):
             raise Exception("list field '%s' referenced by sumof not found" % expr.lenfield_name)
         list_name = field_mapping[field.c_field_name][0]
         c_length_func = "%s(%s)" % (field.c_length_name, list_name)
-        # note: xcb_sumof() has only been defined for integers
         c_length_func = _c_accessor_get_expr(field.type.expr, field_mapping)
-        return 'xcb_sumof(%s, %s)' % (list_name, c_length_func)
+        # create explicit code for computing the sum.
+        # This works for all C-types which can be added to int64_t with +=
+        _c_pre.start()
+        lengthvar = _c_pre.get_tempvarname()
+        loopvar = _c_pre.get_tempvarname()
+        sumvar = _c_pre.get_tempvarname()
+        listvar = _c_pre.get_tempvarname()
+        _c_pre.tempvar("int %s; /* sumof length */", lengthvar)
+        _c_pre.tempvar("int %s; /* sumof loop counter */", loopvar)
+        _c_pre.tempvar("int64_t %s; /* sumof sum */", sumvar)
+        _c_pre.tempvar("const %s* %s; /* sumof list ptr */", field.c_field_type, listvar)
+        _c_pre.code("/* sumof start */")
+        _c_pre.code("%s = %s;", lengthvar, c_length_func)
+        _c_pre.code("%s = 0;", sumvar)
+        _c_pre.code("%s = %s;", listvar, list_name)
+        _c_pre.code("for (%s = 0; %s < %s; %s++) {", loopvar, loopvar, lengthvar, loopvar)
+        _c_pre.indent()
+        _c_pre.code("%s += *%s;", sumvar, listvar)
+        _c_pre.code("%s++;", listvar)
+        _c_pre.pop_indent()
+        _c_pre.code("}")
+        _c_pre.code("/* sumof end. Result is in %s */", sumvar)
+        _c_pre.end()
+        return sumvar
     elif expr.op != None:
         return ('(' + _c_accessor_get_expr(expr.lhs, field_mapping) +
                 ' ' + expr.op + ' ' +
