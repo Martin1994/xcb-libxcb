@@ -1646,7 +1646,30 @@ def _c_accessor_get_expr(expr, field_mapping):
         _c_pre.code("%s = %s;", listvar, list_name)
         _c_pre.code("for (%s = 0; %s < %s; %s++) {", loopvar, loopvar, lengthvar, loopvar)
         _c_pre.indent()
-        _c_pre.code("%s += *%s;", sumvar, listvar)
+
+        if expr.rhs is None:
+            _c_pre.code("%s += *%s;", sumvar, listvar)
+        else:
+            # sumof has a nested expression which has to be evaluated in
+            # the context of this list element
+
+            # field mapping for the subexpression needs to include
+            # the fields of the list-member type
+            scoped_field_mapping = field_mapping.copy()
+            scoped_field_mapping.update(
+                _c_helper_field_mapping(
+                    field.type.member,
+                    [(listvar, '->', field.type.member)]))
+
+            # cause pre-code of the subexpression be added right here
+            _c_pre.end()
+            # compute the subexpression
+            rhs_expr_str = _c_accessor_get_expr(expr.rhs, scoped_field_mapping)
+            # resume with our code
+            _c_pre.start()
+            # output the summation expression
+            _c_pre.code("%s += %s;", sumvar, rhs_expr_str)
+
         _c_pre.code("%s++;", listvar)
         _c_pre.pop_indent()
         _c_pre.code("}")
