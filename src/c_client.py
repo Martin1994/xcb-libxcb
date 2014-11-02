@@ -568,11 +568,6 @@ def _c_helper_fieldaccess_expr(prefix, field=None):
     last_sep =''
     for name, sep, obj in prefix:
         prefix_str += last_sep + name
-        if '' == sep:
-            sep = '->'
-            if ((obj.is_case_or_bitcase and obj.has_name) or     # named bitcase
-                (obj.is_switch and len(obj.parents)>1)):
-                sep = '.'
         last_sep = sep
 
     if field is None:
