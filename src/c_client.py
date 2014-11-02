@@ -336,12 +336,6 @@ def _c_type_setup(self, name, postfix):
         first_field_after_varsized = None
 
         for field in self.fields:
-            _c_type_setup(field.type, field.field_type, ())
-            if field.type.is_list:
-                _c_type_setup(field.type.member, field.field_type, ())
-                if (field.type.nmemb is None):
-                    self.c_need_sizeof = True
-
             field.c_field_type = _t(field.field_type)
             field.c_field_const_type = ('' if field.type.nmemb == 1 else 'const ') + field.c_field_type
             field.c_field_name = _cpp(field.field_name)
@@ -391,6 +385,15 @@ def _c_type_setup(self, name, postfix):
                 if field.type.fixed_size():
                     field.prev_varsized_field = None
 
+            # recurse into this field this has to be done here, i.e.,
+            # after the field has been set up. Otherwise the function
+            # _c_helper_absolute_name will produce garbage or crash
+            _c_type_setup(field.type, field.field_type, ())
+            if field.type.is_list:
+                _c_type_setup(field.type.member, field.field_type, ())
+                if (field.type.nmemb is None):
+                    self.c_need_sizeof = True
+
     if self.c_need_serialize:
         # when _unserialize() is wanted, create _sizeof() as well for consistency reasons
         self.c_need_sizeof = True
@@ -427,6 +430,24 @@ def _c_type_setup(self, name, postfix):
                     _c_serialize('sizeof', self)
 # _c_type_setup()
 
+# Functions for querying field properties
+def _c_field_needs_list_accessor(field):
+    return field.type.is_list and not field.type.fixed_size()
+
+def _c_field_needs_field_accessor(field):
+    if field.type.is_list:
+        return False
+    else:
+        return (field.prev_varsized_field is not None or
+                not field.type.fixed_size())
+
+def _c_field_needs_accessor(field):
+    return (_c_field_needs_list_accessor(field) or
+            _c_field_needs_field_accessor(field))
+
+def _c_field_is_member_of_case_or_bitcase(field):
+    return field.parent and field.parent.is_case_or_bitcase
+
 def _c_helper_absolute_name(prefix, field=None):
     """
     turn prefix, which is a list of tuples (name, separator, Type obj) into a string
@@ -434,16 +455,35 @@ def _c_helper_absolute_name(prefix, field=None):
     if field is not None, append the field name as well
     """
     prefix_str = ''
+    last_sep =''
     for name, sep, obj in prefix:
-        prefix_str += name
+        prefix_str += last_sep + name
         if '' == sep:
             sep = '->'
             if ((obj.is_case_or_bitcase and obj.has_name) or     # named bitcase
                 (obj.is_switch and len(obj.parents)>1)):
                 sep = '.'
-        prefix_str += sep
-    if field is not None:
-        prefix_str += _cpp(field.field_name)
+        last_sep = sep
+
+    if field is None:
+        # add separator for access to a yet unknown field
+        prefix_str += last_sep
+    else:
+        if _c_field_needs_accessor(field):
+            if _c_field_is_member_of_case_or_bitcase(field):
+                # case members are available in the deserialized struct,
+                # so there is no need to use the accessor function
+                # (also, their accessor function needs a different arglist
+                # so this would require special treatment here)
+                # Therefore: Access as struct member
+                prefix_str += last_sep + _cpp(field.field_name)
+            else:
+                # Access with the accessor function
+                prefix_str = field.c_accessor_name + "(" + prefix_str + ")"
+        else:
+            # Access as struct member
+            prefix_str += last_sep + _cpp(field.field_name)
+
     return prefix_str
 # _c_absolute_name
 
@@ -1734,9 +1774,9 @@ def _c_accessors(self, name, base):
     if True:
         for field in self.fields:
             if not field.type.is_pad:
-                if field.type.is_list and not field.type.fixed_size():
+                if _c_field_needs_list_accessor(field):
                     _c_accessors_list(self, field)
-                elif field.prev_varsized_field is not None or not field.type.fixed_size():
+                elif _c_field_needs_field_accessor(field):
                     _c_accessors_field(self, field)
 
 def c_simple(self, name):
