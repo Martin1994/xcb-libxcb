@@ -488,7 +488,7 @@ def _c_type_setup(self, name, postfix):
 
             # recurse into this field this has to be done here, i.e.,
             # after the field has been set up. Otherwise the function
-            # _c_helper_absolute_name will produce garbage or crash
+            # _c_helper_fieldaccess_expr will produce garbage or crash
             _c_type_setup(field.type, field.field_type, ())
             if field.type.is_list:
                 _c_type_setup(field.type.member, field.field_type, ())
@@ -549,7 +549,7 @@ def _c_field_needs_accessor(field):
 def _c_field_is_member_of_case_or_bitcase(field):
     return field.parent and field.parent.is_case_or_bitcase
 
-def _c_helper_absolute_name(prefix, field=None):
+def _c_helper_fieldaccess_expr(prefix, field=None):
     """
     turn prefix, which is a list of tuples (name, separator, Type obj) into a string
     representing a valid name in C (based on the context)
@@ -606,7 +606,7 @@ def _c_helper_field_mapping(complex_type, prefix, flat=False):
                 all_fields.update(_c_helper_field_mapping(b.type, bitcase_prefix, flat))
     else:
         for f in complex_type.fields:
-            fname = _c_helper_absolute_name(prefix, f)
+            fname = _c_helper_fieldaccess_expr(prefix, f)
             if f.field_name in all_fields:
                 raise Exception("field name %s has been registered before" % f.field_name)
 
@@ -891,7 +891,7 @@ def _c_serialize_helper_switch_field(context, self, field, c_switch_variable, pr
     # switch is handled by this function as a special case
     param_fields, wire_fields, params = get_serialize_params(context, self)
     field_mapping = _c_helper_field_mapping(self, prefix)
-    prefix_str = _c_helper_absolute_name(prefix)
+    prefix_str = _c_helper_fieldaccess_expr(prefix)
 
     # find the parameters that need to be passed to _serialize()/_unpack():
     # all switch expr fields must be given as parameters
@@ -935,7 +935,7 @@ def _c_serialize_helper_list_field(context, self, field,
     helper function to cope with lists of variable length
     """
     expr = field.type.expr
-    prefix_str = _c_helper_absolute_name(prefix)
+    prefix_str = _c_helper_fieldaccess_expr(prefix)
     param_fields, wire_fields, params = get_serialize_params('sizeof', self)
     param_names = [p[2] for p in params]
 
@@ -1006,7 +1006,7 @@ def _c_serialize_helper_fields_fixed_size(context, self, field,
         typename = reduce(lambda x,y: "%s.%s" % (x, y), scoped_name)
         code_lines.append('%s    /* %s.%s */' % (space, typename, field.c_field_name))
 
-    abs_field_name = _c_helper_absolute_name(prefix, field)
+    abs_field_name = _c_helper_fieldaccess_expr(prefix, field)
     # default for simple cases: call sizeof()
     length = "sizeof(%s)" % field.c_field_type
 
@@ -1068,7 +1068,7 @@ def _c_serialize_helper_fields_fixed_size(context, self, field,
 def _c_serialize_helper_fields_variable_size(context, self, field,
                                              code_lines, temp_vars,
                                              space, prefix):
-    prefix_str = _c_helper_absolute_name(prefix)
+    prefix_str = _c_helper_fieldaccess_expr(prefix)
 
     if context in ('unserialize', 'unpack', 'sizeof'):
         value = ''
