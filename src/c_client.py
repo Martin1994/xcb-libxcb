@@ -1646,6 +1646,14 @@ def _c_accessor_get_expr(expr, field_mapping):
         _c_pre.code("for (%s = 0; %s < %s; %s++) {", loopvar, loopvar, lengthvar, loopvar)
         _c_pre.indent()
 
+        # define and set xcb_listelement, so that it can be used by
+        # listelement-ref expressions.
+        if expr.contains_listelement_ref:
+            _c_pre.code(
+                "const %s *xcb_listelement = %s;",
+                field.c_field_type, listvar)
+
+        # summation
         if expr.rhs is None:
             _c_pre.code("%s += *%s;", sumvar, listvar)
         else:
@@ -1655,10 +1663,11 @@ def _c_accessor_get_expr(expr, field_mapping):
             # field mapping for the subexpression needs to include
             # the fields of the list-member type
             scoped_field_mapping = field_mapping.copy()
-            scoped_field_mapping.update(
-                _c_helper_field_mapping(
-                    field.type.member,
-                    [(listvar, '->', field.type.member)]))
+            if not field.type.member.is_simple:
+                scoped_field_mapping.update(
+                    _c_helper_field_mapping(
+                        field.type.member,
+                        [(listvar, '->', field.type.member)]))
 
             # cause pre-code of the subexpression be added right here
             _c_pre.end()
@@ -1675,6 +1684,8 @@ def _c_accessor_get_expr(expr, field_mapping):
         _c_pre.code("/* sumof end. Result is in %s */", sumvar)
         _c_pre.end()
         return sumvar
+    elif expr.op == 'listelement-ref':
+        return '(*xcb_listelement)'
     elif expr.op != None:
         return ('(' + _c_accessor_get_expr(expr.lhs, field_mapping) +
                 ' ' + expr.op + ' ' +
