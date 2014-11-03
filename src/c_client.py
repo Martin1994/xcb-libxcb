@@ -723,6 +723,31 @@ def resolve_expr_fields(complex_obj):
     return unresolved
 # resolve_expr_fields()
 
+def resolve_expr_fields_list(self, parents):
+    """
+    Find expr fields appearing in a list and descendents
+    that cannot be resolved within the parents of the list.
+    These are normally fields that need to be given as function parameters
+    for length and iterator functions.
+    """
+    all_fields = []
+    expr_fields = get_expr_fields(self)
+    unresolved = []
+
+    for complex_obj in parents:
+        for field in complex_obj.fields:
+            if field.wire:
+                all_fields.append(field)
+
+    # try to resolve expr fields
+    for e in expr_fields:
+        if e not in all_fields and e not in unresolved:
+            unresolved.append(e)
+
+    return unresolved
+# resolve_expr_fields_list()
+
+
 def get_serialize_params(context, self, buffer_var='_buffer', aux_var='_aux'):
     """
     functions like _serialize(), _unserialize(), and _unpack() sometimes need additional parameters:
@@ -932,6 +957,16 @@ def _c_serialize_helper_switch_field(context, self, field, c_switch_variable, pr
     return length
 # _c_serialize_helper_switch_field()
 
+def _c_get_additional_type_params(type):
+    """
+    compute list of additional params for functions created for the given type
+    """
+    if type.is_simple:
+        return []
+    else:
+        param_fields, wire_fields, params = get_serialize_params('sizeof', type)
+        return params[1:]
+
 def _c_serialize_helper_list_field(context, self, field,
                                    code_lines, temp_vars,
                                    space, prefix):
@@ -970,6 +1005,14 @@ def _c_serialize_helper_list_field(context, self, field,
 
     # list with variable-sized elements
     if not field.type.member.fixed_size():
+        # compute string for argumentlist for member-type functions
+        member_params = _c_get_additional_type_params(field.type.member)
+        member_arg_names = [p[2] for p in member_params]
+        member_arg_str = ''
+        for member_arg_name in member_arg_names:
+            member_arg_str += ', ' + field_mapping[member_arg_name][0]
+
+        #
         length = ''
         if context in ('unserialize', 'sizeof', 'unpack'):
             int_i = '    unsigned int i;'
@@ -981,8 +1024,8 @@ def _c_serialize_helper_list_field(context, self, field,
             # loop over all list elements and call sizeof repeatedly
             # this should be a bit faster than using the iterators
             code_lines.append("%s    for(i=0; i<%s; i++) {" % (space, list_length))
-            code_lines.append("%s        xcb_tmp_len = %s(xcb_tmp);" %
-                              (space, field.type.c_sizeof_name))
+            code_lines.append("%s        xcb_tmp_len = %s(xcb_tmp%s);" %
+                              (space, field.type.c_sizeof_name, member_arg_str))
             code_lines.append("%s        xcb_block_len += xcb_tmp_len;" % space)
             code_lines.append("%s        xcb_tmp += xcb_tmp_len;" % space)
             code_lines.append("%s    }" % space)
@@ -991,7 +1034,7 @@ def _c_serialize_helper_list_field(context, self, field,
             code_lines.append('%s    xcb_parts[xcb_parts_idx].iov_len = 0;' % space)
             code_lines.append('%s    xcb_tmp = (char *) %s%s;' % (space, prefix_str, field.c_field_name))
             code_lines.append('%s    for(i=0; i<%s; i++) { ' % (space, list_length))
-            code_lines.append('%s        xcb_block_len = %s(xcb_tmp);' % (space, field.type.c_sizeof_name))
+            code_lines.append('%s        xcb_block_len = %s(xcb_tmp%s);' % (space, field.type.c_sizeof_name, member_arg_str))
             code_lines.append('%s        xcb_parts[xcb_parts_idx].iov_len += xcb_block_len;' % space)
             code_lines.append('%s    }' % space)
             code_lines.append('%s    xcb_block_len = xcb_parts[xcb_parts_idx].iov_len;' % space)
@@ -1502,6 +1545,14 @@ def _c_iterator(self, name):
     _h('    %s *data; /**<  */', self.c_type)
     _h('    int%s rem; /**<  */', ' ' * (len(self.c_type) - 2))
     _h('    int%s index; /**<  */', ' ' * (len(self.c_type) - 2))
+    # add additional params of the type "self" as fields to the iterator struct
+    # so that they can be passed to the sizeof-function by the iterator's next-function
+    params = _c_get_additional_type_params(self)
+    for param in params:
+        _h('    %s%s %s; /**<  */',
+            param[0],
+            ' ' * (len(self.c_type) + 1 - len(param[0])),
+            param[2])
     _h('} %s;', self.c_iterator_type)
 
     _h_setlevel(1)
@@ -1529,9 +1580,14 @@ def _c_iterator(self, name):
             _c('    /* FIXME - determine the size of the union %s */', self.c_type)
         else:
             if self.c_need_sizeof:
+                # compute the string of additional arguments for the sizeof-function
+                additional_args = ''
+                for param in params:
+                    additional_args += ', i->' + param[2]
+
                 _c('    xcb_generic_iterator_t child;')
-                _c('    child.data = (%s *)(((char *)R) + %s(R));',
-                   self.c_type, self.c_sizeof_name)
+                _c('    child.data = (%s *)(((char *)R) + %s(R%s));',
+                   self.c_type, self.c_sizeof_name, additional_args)
                 _c('    i->index = (char *) child.data - (char *) i->data;')
             else:
                 _c('    xcb_generic_iterator_t child = %s;', _c_iterator_get_end(self.last_varsized_field, 'R'))
@@ -1815,6 +1871,29 @@ def _c_accessors_list(self, field):
         # auxiliary object for 'S' parameter
         S_obj = parents[1]
 
+    # for functions generated below:
+    # * compute list of additional parameters which contains as parameter
+    #   any expr fields that cannot be resolved within self and descendants.
+    # * and make sure that they are accessed without prefix within the function.
+    unresolved_fields = resolve_expr_fields_list(list, parents)
+    additional_params = []
+    additional_param_names = set();
+    for f in unresolved_fields:
+        if f.c_field_name not in additional_param_names:
+            # add to the list of additional params
+            additional_params.append((f.c_field_type, f.c_field_name));
+            # make sure that the param is accessed without prefix within the function
+            fields[ f.c_field_name ] = (f.c_field_name, f)
+
+    # internal function to compute the parameterlist with given indentation
+    # such that the formatting of the additional parameters is consistent with
+    # the other parameters.
+    def additional_params_to_str(indent):
+        if len(additional_params) == 0:
+            return ''
+        else:
+            return (',\n' + indent).join([''] + ['%s %s /**< */' % p for p in additional_params])
+
     _h_setlevel(1)
     _c_setlevel(1)
     if list.member.fixed_size():
@@ -1845,14 +1924,15 @@ def _c_accessors_list(self, field):
 
     _hc('')
     _hc('int')
+    spacing = ' '*(len(field.c_length_name)+2)
+    add_param_str = additional_params_to_str(spacing)
     if switch_obj is not None:
         _hc('%s (const %s *R  /**< */,', field.c_length_name, R_obj.c_type)
-        spacing = ' '*(len(field.c_length_name)+2)
-        _h('%sconst %s *S /**< */);', spacing, S_obj.c_type)
-        _c('%sconst %s *S  /**< */)', spacing, S_obj.c_type)
+        _h('%sconst %s *S /**< */%s);', spacing, S_obj.c_type, add_param_str)
+        _c('%sconst %s *S  /**< */%s)', spacing, S_obj.c_type, add_param_str)
     else:
-        _h('%s (const %s *R  /**< */);', field.c_length_name, c_type)
-        _c('%s (const %s *R  /**< */)', field.c_length_name, c_type)
+        _h('%s (const %s *R  /**< */%s);', field.c_length_name, c_type, add_param_str)
+        _c('%s (const %s *R  /**< */%s)', field.c_length_name, c_type, add_param_str)
     _c('{')
     length = _c_accessor_get_expr(field.type.expr, fields)
     _c('    return %s;', length)
@@ -1861,14 +1941,15 @@ def _c_accessors_list(self, field):
     if field.type.member.is_simple:
         _hc('')
         _hc('xcb_generic_iterator_t')
+        spacing = ' '*(len(field.c_end_name)+2)
+        add_param_str = additional_params_to_str(spacing)
         if switch_obj is not None:
             _hc('%s (const %s *R  /**< */,', field.c_end_name, R_obj.c_type)
-            spacing = ' '*(len(field.c_end_name)+2)
-            _h('%sconst %s *S /**< */);', spacing, S_obj.c_type)
-            _c('%sconst %s *S  /**< */)', spacing, S_obj.c_type)
+            _h('%sconst %s *S /**< */%s);', spacing, S_obj.c_type, add_param_str)
+            _c('%sconst %s *S  /**< */%s)', spacing, S_obj.c_type, add_param_str)
         else:
-            _h('%s (const %s *R  /**< */);', field.c_end_name, c_type)
-            _c('%s (const %s *R  /**< */)', field.c_end_name, c_type)
+            _h('%s (const %s *R  /**< */%s);', field.c_end_name, c_type, add_param_str)
+            _c('%s (const %s *R  /**< */%s)', field.c_end_name, c_type, add_param_str)
         _c('{')
         _c('    xcb_generic_iterator_t i;')
 
@@ -1893,14 +1974,15 @@ def _c_accessors_list(self, field):
     else:
         _hc('')
         _hc('%s', field.c_iterator_type)
+        spacing = ' '*(len(field.c_iterator_name)+2)
+        add_param_str = additional_params_to_str(spacing)
         if switch_obj is not None:
             _hc('%s (const %s *R  /**< */,', field.c_iterator_name, R_obj.c_type)
-            spacing = ' '*(len(field.c_iterator_name)+2)
-            _h('%sconst %s *S /**< */);', spacing, S_obj.c_type)
-            _c('%sconst %s *S  /**< */)', spacing, S_obj.c_type)
+            _h('%sconst %s *S /**< */%s);', spacing, S_obj.c_type, add_param_str)
+            _c('%sconst %s *S  /**< */%s)', spacing, S_obj.c_type, add_param_str)
         else:
-            _h('%s (const %s *R  /**< */);', field.c_iterator_name, c_type)
-            _c('%s (const %s *R  /**< */)', field.c_iterator_name, c_type)
+            _h('%s (const %s *R  /**< */%s);', field.c_iterator_name, c_type, add_param_str)
+            _c('%s (const %s *R  /**< */%s)', field.c_iterator_name, c_type, add_param_str)
         _c('{')
         _c('    %s i;', field.c_iterator_type)
 
@@ -1930,6 +2012,13 @@ def _c_accessors_list(self, field):
         if switch_obj is None:
             _c('    i.rem = %s;', length_expr_str)
         _c('    i.index = (char *) i.data - (char *) %s;', 'R' if switch_obj is None else 'S' )
+
+        # initialize additional iterator fields which are derived from
+        # additional type parameters for the list member type.
+        additional_iter_fields = _c_get_additional_type_params(field.type.member)
+        for iter_field in additional_iter_fields:
+             _c('    i.%s = %s;', iter_field[2], fields[iter_field[2]][0])
+
         _c('    return i;')
         _c('}')
 
