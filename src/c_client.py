@@ -3137,6 +3137,7 @@ def c_request(self, name):
         if self.c_need_aux:
             _c_request_helper(self, name, 'xcb_void_cookie_t', True, False, True)
             _c_request_helper(self, name, 'xcb_void_cookie_t', True, True, True)
+        _c_accessors(self, name, name)
 
     # We generate the manpage afterwards because _c_type_setup has been called.
     # TODO: what about aux helpers?
