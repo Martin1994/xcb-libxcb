@@ -206,6 +206,15 @@ case $host_os in
         ;;
 esac
 
+dnl Link with winsock for socket functions on MinGW
+case $host_os in
+        *mingw*)
+                AC_CHECK_LIB([ws2_32],[main])
+                ;;
+        *)
+                ;;
+esac
+
 XCB_EXTENSION(Composite, yes)
 XCB_EXTENSION(Damage, yes)
 XCB_EXTENSION(DPMS, yes)
