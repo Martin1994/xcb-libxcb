@@ -629,8 +629,7 @@ def _c_helper_resolve_field_names (prefix):
     all_fields = {}
     tmp_prefix = []
     # look for fields in the remaining containers
-    for idx, p in enumerate(prefix):
-        name, sep, obj = p
+    for idx, (name, sep, obj) in enumerate(prefix):
         if ''==sep:
             # sep can be preset in prefix, if not, make a sensible guess
             sep = '.' if (obj.is_switch or obj.is_case_or_bitcase) else '->'
@@ -1033,7 +1032,7 @@ def _c_serialize_helper_fields_fixed_size(context, self, field,
     if not self.is_case_or_bitcase:
         code_lines.append('%s    /* %s.%s */' % (space, self.c_type, field.c_field_name))
     else:
-        scoped_name = [p[2].c_type if idx==0 else p[0] for idx, p in enumerate(prefix)]
+        scoped_name = [obj.c_type if idx==0 else name for idx, (name, _, obj) in enumerate(prefix)]
         typename = ".".join(scoped_name)
         code_lines.append('%s    /* %s.%s */' % (space, typename, field.c_field_name))
 
@@ -2291,7 +2290,7 @@ def _c_request_helper(self, name, void, regular, aux=False, reply_fds=False):
         _c('    void *xcb_aux = 0;')
 
 
-    for idx, f in enumerate(serial_fields):
+    for idx, _ in enumerate(serial_fields):
         if aux:
             _c('    void *xcb_aux%d = 0;' % (idx))
     if list_with_var_size_elems:
