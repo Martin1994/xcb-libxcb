@@ -177,6 +177,34 @@ uint32_t xcb_get_maximum_request_length(xcb_connection_t *c)
     return c->out.maximum_request_length.value;
 }
 
+static void close_fds(int *fds, unsigned int num_fds)
+{
+    for (unsigned int index = 0; index < num_fds; index++)
+        close(fds[index]);
+}
+
+static void send_fds(xcb_connection_t *c, int *fds, unsigned int num_fds)
+{
+#if HAVE_SENDMSG
+    while (num_fds > 0) {
+        /* FIXME: This will busy-loop when XCB_MAX_PASS_FD fds are sent at once */
+        while (c->out.out_fd.nfd == XCB_MAX_PASS_FD && !c->has_error) {
+            /* XXX: if c->out.writing > 0, this releases the iolock and
+             * potentially allows other threads to interfere with their own fds.
+             */
+            _xcb_out_flush_to(c, c->out.request);
+        }
+        if (c->has_error)
+            break;
+
+        c->out.out_fd.fd[c->out.out_fd.nfd++] = fds[0];
+        fds++;
+        num_fds--;
+    }
+#endif
+    close_fds(fds, num_fds);
+}
+
 uint64_t xcb_send_request64(xcb_connection_t *c, int flags, struct iovec *vector, const xcb_protocol_request_t *req)
 {
     uint64_t request;
@@ -295,19 +323,15 @@ unsigned int xcb_send_request(xcb_connection_t *c, int flags, struct iovec *vect
 void
 xcb_send_fd(xcb_connection_t *c, int fd)
 {
-#if HAVE_SENDMSG
-    if (c->has_error)
+    int fds[1] = { fd };
+
+    if (c->has_error) {
+        close(fd);
         return;
-    pthread_mutex_lock(&c->iolock);
-    while (c->out.out_fd.nfd == XCB_MAX_PASS_FD) {
-        _xcb_out_flush_to(c, c->out.request);
-        if (c->has_error)
-            break;
     }
-    if (!c->has_error)
-        c->out.out_fd.fd[c->out.out_fd.nfd++] = fd;
+    pthread_mutex_lock(&c->iolock);
+    send_fds(c, &fds[0], 1);
     pthread_mutex_unlock(&c->iolock);
-#endif
 }
 
 int xcb_take_socket(xcb_connection_t *c, void (*return_socket)(void *closure), void *closure, int flags, uint64_t *sent)
