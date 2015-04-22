@@ -2297,6 +2297,9 @@ def _c_request_helper(self, name, void, regular, aux=False, reply_fds=False):
         _c('    unsigned int i;')
         _c('    unsigned int xcb_tmp_len;')
         _c('    char *xcb_tmp;')
+    num_fds = len([field for field in param_fields if field.isfd])
+    if num_fds > 0:
+        _c('    int fds[%d];' % (num_fds))
     _c('')
 
     # fixed size fields
@@ -2397,11 +2400,16 @@ def _c_request_helper(self, name, void, regular, aux=False, reply_fds=False):
         # no padding necessary - _serialize() keeps track of padding automatically
 
     _c('')
+    fd_index = 0
     for field in param_fields:
         if field.isfd:
-            _c('    xcb_send_fd(c, %s);', field.c_field_name)
+            _c('    fds[%d] = %s;', fd_index, field.c_field_name)
+            fd_index = fd_index + 1
 
-    _c('    xcb_ret.sequence = xcb_send_request(c, %s, xcb_parts + 2, &xcb_req);', func_flags)
+    if num_fds == 0:
+        _c('    xcb_ret.sequence = xcb_send_request(c, %s, xcb_parts + 2, &xcb_req);', func_flags)
+    else:
+        _c('    xcb_ret.sequence = xcb_send_request_with_fds(c, %s, xcb_parts + 2, &xcb_req, %d, fds);', func_flags, num_fds)
 
     # free dyn. all. data, if any
     for f in free_calls:
