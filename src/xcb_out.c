@@ -214,15 +214,18 @@ static void send_fds(xcb_connection_t *c, int *fds, unsigned int num_fds)
     close_fds(fds, num_fds);
 }
 
-uint64_t xcb_send_request64(xcb_connection_t *c, int flags, struct iovec *vector, const xcb_protocol_request_t *req)
+uint64_t xcb_send_request_with_fds64(xcb_connection_t *c, int flags, struct iovec *vector,
+                const xcb_protocol_request_t *req, unsigned int num_fds, int *fds)
 {
     uint64_t request;
     uint32_t prefix[2];
     int veclen = req->count;
     enum workarounds workaround = WORKAROUND_NONE;
 
-    if(c->has_error)
+    if(c->has_error) {
+        close_fds(fds, num_fds);
         return 0;
+    }
 
     assert(c != 0);
     assert(vector != 0);
@@ -241,6 +244,7 @@ uint64_t xcb_send_request64(xcb_connection_t *c, int flags, struct iovec *vector
             const xcb_query_extension_reply_t *extension = xcb_get_extension_data(c, req->ext);
             if(!(extension && extension->present))
             {
+                close_fds(fds, num_fds);
                 _xcb_conn_shutdown(c, XCB_CONN_CLOSED_EXT_NOTSUPPORTED);
                 return 0;
             }
@@ -271,6 +275,7 @@ uint64_t xcb_send_request64(xcb_connection_t *c, int flags, struct iovec *vector
         }
         else if(longlen > xcb_get_maximum_request_length(c))
         {
+            close_fds(fds, num_fds);
             _xcb_conn_shutdown(c, XCB_CONN_CLOSED_REQ_LEN_EXCEED);
             return 0; /* server can't take this; maybe need BIGREQUESTS? */
         }
@@ -317,10 +322,23 @@ uint64_t xcb_send_request64(xcb_connection_t *c, int flags, struct iovec *vector
         prepare_socket_request(c);
     }
 
+    send_fds(c, fds, num_fds);
     send_request(c, req->isvoid, workaround, flags, vector, veclen);
     request = c->has_error ? 0 : c->out.request;
     pthread_mutex_unlock(&c->iolock);
     return request;
+}
+
+/* request number are actually uint64_t internally but keep API compat with unsigned int */
+unsigned int xcb_send_request_with_fds(xcb_connection_t *c, int flags, struct iovec *vector,
+        const xcb_protocol_request_t *req, unsigned int num_fds, int *fds)
+{
+    return xcb_send_request_with_fds64(c, flags, vector, req, num_fds, fds);
+}
+
+uint64_t xcb_send_request64(xcb_connection_t *c, int flags, struct iovec *vector, const xcb_protocol_request_t *req)
+{
+    return xcb_send_request_with_fds64(c, flags, vector, req, 0, NULL);
 }
 
 /* request number are actually uint64_t internally but keep API compat with unsigned int */
