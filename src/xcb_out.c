@@ -196,12 +196,16 @@ static void send_fds(xcb_connection_t *c, int *fds, unsigned int num_fds)
     prepare_socket_request(c);
 
     while (num_fds > 0) {
-        /* FIXME: This will busy-loop when XCB_MAX_PASS_FD fds are sent at once */
         while (c->out.out_fd.nfd == XCB_MAX_PASS_FD && !c->has_error) {
             /* XXX: if c->out.writing > 0, this releases the iolock and
              * potentially allows other threads to interfere with their own fds.
              */
             _xcb_out_flush_to(c, c->out.request);
+
+            if (c->out.out_fd.nfd == XCB_MAX_PASS_FD) {
+                /* We need some request to send FDs with */
+                _xcb_out_send_sync(c);
+            }
         }
         if (c->has_error)
             break;
@@ -306,6 +310,11 @@ uint64_t xcb_send_request_with_fds64(xcb_connection_t *c, int flags, struct iove
     /* get a sequence number and arrange for delivery. */
     pthread_mutex_lock(&c->iolock);
 
+    /* send FDs before establishing a good request number, because this might
+     * call send_sync(), too
+     */
+    send_fds(c, fds, num_fds);
+
     prepare_socket_request(c);
 
     /* send GetInputFocus (sync_req) when 64k-2 requests have been sent without
@@ -314,7 +323,7 @@ uint64_t xcb_send_request_with_fds64(xcb_connection_t *c, int flags, struct iove
      * applications see sequence 0 as that is used to indicate
      * an error in sending the request
      */
-     
+
     while ((req->isvoid && c->out.request == c->in.request_expected + (1 << 16) - 2) ||
            (unsigned int) (c->out.request + 1) == 0)
     {
@@ -322,7 +331,6 @@ uint64_t xcb_send_request_with_fds64(xcb_connection_t *c, int flags, struct iove
         prepare_socket_request(c);
     }
 
-    send_fds(c, fds, num_fds);
     send_request(c, req->isvoid, workaround, flags, vector, veclen);
     request = c->has_error ? 0 : c->out.request;
     pthread_mutex_unlock(&c->iolock);
