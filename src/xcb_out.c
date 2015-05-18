@@ -186,6 +186,15 @@ static void close_fds(int *fds, unsigned int num_fds)
 static void send_fds(xcb_connection_t *c, int *fds, unsigned int num_fds)
 {
 #if HAVE_SENDMSG
+    /* Calling _xcb_out_flush_to() can drop the iolock and wait on a condition
+     * variable if another thread is currently writing (c->out.writing > 0).
+     * This call waits for writers to be done and thus _xcb_out_flush_to() will
+     * do the work itself (in which case we are a writer and
+     * prepare_socket_request() will wait for us to be done if another threads
+     * tries to send fds, too). Thanks to this, we can atomically write out FDs.
+     */
+    prepare_socket_request(c);
+
     while (num_fds > 0) {
         /* FIXME: This will busy-loop when XCB_MAX_PASS_FD fds are sent at once */
         while (c->out.out_fd.nfd == XCB_MAX_PASS_FD && !c->has_error) {
