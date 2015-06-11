@@ -252,6 +252,10 @@ if test "x$LAUNCHD" = xyes ; then
         AC_DEFINE(HAVE_LAUNCHD, 1, [launchd support available])
 fi
 
+AC_ARG_WITH(serverside-support, AS_HELP_STRING([--with-serverside-support], [Build with support for server-side usage of xcb. This is still EXPERIMENTAL! ABI/API may change! (default: no)]), [XCB_SERVERSIDE_SUPPORT=$withval], [XCB_SERVERSIDE_SUPPORT=no])
+
+AM_CONDITIONAL(XCB_SERVERSIDE_SUPPORT, test "x$XCB_SERVERSIDE_SUPPORT" = "xyes")
+
 AC_CONFIG_FILES([
 Makefile
 doc/Makefile
