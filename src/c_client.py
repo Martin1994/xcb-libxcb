@@ -819,7 +819,7 @@ def get_serialize_params(context, self, buffer_var='_buffer', aux_var='_aux'):
 
     return (param_fields, wire_fields, params)
 
-def _c_serialize_helper_insert_padding(context, code_lines, space, postpone, is_case_or_bitcase):
+def _c_serialize_helper_insert_padding(context, complex_type, code_lines, space, postpone, is_case_or_bitcase):
     code_lines.append('%s    /* insert padding */' % space)
     if is_case_or_bitcase:
         code_lines.append(
@@ -894,7 +894,7 @@ def _c_serialize_helper_switch(context, self, complex_name,
         code_lines.append('    }')
 
 #    if 'serialize' == context:
-#        count += _c_serialize_helper_insert_padding(context, code_lines, space, False)
+#        count += _c_serialize_helper_insert_padding(context, self, code_lines, space, False)
 #    elif context in ('unserialize', 'unpack', 'sizeof'):
 #        # padding
 #        code_lines.append('%s    xcb_pad = -xcb_block_len & 3;' % space)
@@ -1168,7 +1168,7 @@ def _c_serialize_helper_fields(context, self,
             if self.is_case_or_bitcase or self.c_var_followed_by_fixed_fields:
                 if prev_field_was_variable and need_padding:
                     # insert padding
-#                    count += _c_serialize_helper_insert_padding(context, code_lines, space,
+#                    count += _c_serialize_helper_insert_padding(context, self, code_lines, space,
 #                                                                self.c_var_followed_by_fixed_fields)
                     prev_field_was_variable = False
 
@@ -1186,14 +1186,14 @@ def _c_serialize_helper_fields(context, self,
             if field.type.is_pad:
                 # Variable length pad is <pad align= />
                 code_lines.append('%s    xcb_align_to = %d;' % (space, field.type.align))
-                count += _c_serialize_helper_insert_padding(context, code_lines, space,
+                count += _c_serialize_helper_insert_padding(context, self, code_lines, space,
                                                             self.c_var_followed_by_fixed_fields,
                                                             is_case_or_bitcase)
                 continue
             else:
                 # switch/bitcase: always calculate padding before and after variable sized fields
                 if need_padding or is_case_or_bitcase:
-                    count += _c_serialize_helper_insert_padding(context, code_lines, space,
+                    count += _c_serialize_helper_insert_padding(context, self, code_lines, space,
                                                                 self.c_var_followed_by_fixed_fields,
                                                                 is_case_or_bitcase)
 
@@ -1285,7 +1285,7 @@ def _c_serialize_helper(context, complex_type,
                                             code_lines, temp_vars,
                                             space, prefix, False)
     # "final padding"
-    count += _c_serialize_helper_insert_padding(context, code_lines, space, False, self.is_switch)
+    count += _c_serialize_helper_insert_padding(context, complex_type, code_lines, space, False, self.is_switch)
 
     return count
 
@@ -1356,7 +1356,8 @@ def _c_serialize(context, self):
             _c('    unsigned int xcb_buffer_len = 0;')
             _c('    unsigned int xcb_align_to = 0;')
         if self.is_switch:
-            _c('    unsigned int xcb_padding_offset = ((size_t)xcb_out) & 7;')
+            _c('    unsigned int xcb_padding_offset = %d;',
+	       self.get_align_offset() )
         prefix = [('_aux', '->', self)]
         aux_ptr = 'xcb_out'
 
@@ -1381,7 +1382,8 @@ def _c_serialize(context, self):
         _c('    unsigned int xcb_pad = 0;')
         _c('    unsigned int xcb_align_to = 0;')
         if self.is_switch:
-            _c('    unsigned int xcb_padding_offset = ((size_t)_buffer) & 7;')
+            _c('    unsigned int xcb_padding_offset = %d;',
+	       self.get_align_offset() )
 
     elif 'sizeof' == context:
         param_names = [p[2] for p in params]
