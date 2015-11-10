@@ -1948,8 +1948,9 @@ def _c_accessors_list(self, field):
 
             _c('    xcb_generic_iterator_t prev = %s;',
                 _c_iterator_get_end(prev_varsized_field, 'R'))
-            _c('    i.data = ((%s *) prev.data) + %s + (%s);', field.type.c_wiretype,
-                align_pad, _c_accessor_get_expr(field.type.expr, fields))
+            _c('    i.data = ((%s *) ((char*) prev.data + %s)) + (%s);',
+                field.type.c_wiretype, align_pad,
+                _c_accessor_get_expr(field.type.expr, fields))
 
         _c('    i.rem = 0;')
         _c('    i.index = (char *) i.data - (char *) %s;', param)
