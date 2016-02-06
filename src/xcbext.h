@@ -268,7 +268,7 @@ void *xcb_wait_for_reply64(xcb_connection_t *c, uint64_t request, xcb_generic_er
  * @param c The connection to the X server.
  * @param request Sequence number of the request as returned by xcb_send_request().
  * @param reply Location to store the reply in, must not be NULL.
- * @param e Location to store errors in, or NULL. Ignored for unchecked requests.
+ * @param error Location to store errors in, or NULL. Ignored for unchecked requests.
  * @return 1 when the reply to the request was returned, else 0.
  *
  * Checks if the reply to the given request already received. Does not block.
@@ -280,7 +280,7 @@ int xcb_poll_for_reply(xcb_connection_t *c, unsigned int request, void **reply, 
  * @param c The connection to the X server.
  * @param request 64-bit sequence number of the request as returned by xcb_send_request().
  * @param reply Location to store the reply in, must not be NULL.
- * @param e Location to store errors in, or NULL. Ignored for unchecked requests.
+ * @param error Location to store errors in, or NULL. Ignored for unchecked requests.
  * @return 1 when the reply to the request was returned, else 0.
  *
  * Checks if the reply to the given request already received. Does not block.
