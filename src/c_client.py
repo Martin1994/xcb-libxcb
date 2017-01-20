@@ -1661,14 +1661,7 @@ def _c_accessor_get_expr(expr, field_mapping):
         return c_name
     elif expr.op == 'sumof':
         # locate the referenced list object
-        field = None
-        for f in expr.lenfield_parent.fields:
-            if f.field_name == expr.lenfield_name:
-                field = f
-                break
-
-        if field is None:
-            raise Exception("list field '%s' referenced by sumof not found" % expr.lenfield_name)
+        field = expr.lenfield
         list_name = field_mapping[field.c_field_name][0]
         c_length_func = "%s(%s)" % (field.c_length_name, list_name)
         c_length_func = _c_accessor_get_expr(field.type.expr, field_mapping)
