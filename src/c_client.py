@@ -2340,12 +2340,30 @@ def _c_request_helper(self, name, void, regular, aux=False, reply_fds=False):
         if aux:
             _c('    void *xcb_aux%d = 0;' % (idx))
     if list_with_var_size_elems:
-        _c('    unsigned int i;')
         _c('    unsigned int xcb_tmp_len;')
         _c('    char *xcb_tmp;')
-    num_fds = len([field for field in param_fields if field.isfd])
-    if num_fds > 0:
-        _c('    int fds[%d];' % (num_fds))
+
+    num_fds_fixed = 0
+    num_fds_expr = []
+    for field in param_fields:
+        if field.isfd:
+            if not field.type.is_list:
+                num_fds_fixed += 1
+            else:
+                num_fds_expr.append(_c_accessor_get_expr(field.type.expr, None))
+
+    if list_with_var_size_elems or len(num_fds_expr) > 0:
+        _c('    unsigned int i;')
+
+    if num_fds_fixed > 0:
+        num_fds_expr.append('%d' % (num_fds_fixed))
+    if len(num_fds_expr) > 0:
+        num_fds = '+'.join(num_fds_expr)
+        _c('    int fds[%s];' % (num_fds))
+        _c('    int fd_index = 0;')
+    else:
+        num_fds = None
+
     _c('')
 
     # fixed size fields
@@ -2451,16 +2469,18 @@ def _c_request_helper(self, name, void, regular, aux=False, reply_fds=False):
         # no padding necessary - _serialize() keeps track of padding automatically
 
     _c('')
-    fd_index = 0
     for field in param_fields:
         if field.isfd:
-            _c('    fds[%d] = %s;', fd_index, field.c_field_name)
-            fd_index = fd_index + 1
+            if not field.type.is_list:
+                _c('    fds[fd_index++] = %s;', field.c_field_name)
+            else:
+                _c('    for (i = 0; i < %s; i++)', _c_accessor_get_expr(field.type.expr, None))
+                _c('        fds[fd_index++] = %s[i];', field.c_field_name)
 
-    if num_fds == 0:
+    if not num_fds:
         _c('    xcb_ret.sequence = xcb_send_request(c, %s, xcb_parts + 2, &xcb_req);', func_flags)
     else:
-        _c('    xcb_ret.sequence = xcb_send_request_with_fds(c, %s, xcb_parts + 2, &xcb_req, %d, fds);', func_flags, num_fds)
+        _c('    xcb_ret.sequence = xcb_send_request_with_fds(c, %s, xcb_parts + 2, &xcb_req, %s, fds);', func_flags, num_fds)
 
     # free dyn. all. data, if any
     for f in free_calls:
