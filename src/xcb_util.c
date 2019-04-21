@@ -444,11 +444,11 @@ static int _xcb_open_unix(char *protocol, const char *file)
     fd = _xcb_socket(AF_UNIX, SOCK_STREAM, 0);
     if(fd == -1)
         return -1;
-    if(getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &val, &len) == 0 && val < 64 * 1024)
-    {
-        val = 64 * 1024;
-        setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(int));
-    }
+    // if(getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &val, &len) == 0 && val < 64 * 1024)
+    // {
+    //     val = 64 * 1024;
+    //     setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(int));
+    // }
     if(connect(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         close(fd);
         return -1;
